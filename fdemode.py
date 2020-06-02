@@ -10,7 +10,7 @@ Useful links:
 https://support.lumerical.com/hc/en-us/articles/360034917233-MODE-Finite-Difference-Eigenmode-FDE-solver-introduction
 https://support.lumerical.com/hc/en-us/articles/360034382674-PML-boundary-conditions-in-FDTD-and-MODE#toc_2
 https://support.lumerical.com/hc/en-us/articles/360034382694-Symmetric-and-anti-symmetric-BCs-in-FDTD-and-MODE
-Copyright:   (c) May 2020 David Heydari, Edwin Ng
+Copyright:   (c) May 2020 David Heydari
 """
 import sys, os
 fileDir = os.path.dirname(os.path.abspath(__file__))
