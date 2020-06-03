@@ -26,7 +26,7 @@ mu0 = sc.mu_0
 eps0 = sc.epsilon_0
 Z0 = 1/np.sqrt(eps0/mu0)
 
-class FDEModes:
+class ModeSimulator:
     def __init__(self, wg, wavl_0, wavl_bw, is_TE=True, trial_modes=4, N_sweep=10, hideGUI=True):        
         self.mode = lumapi.MODE(fileDir + '/template/waveguide_get_modes.lms', hide=hideGUI)
         self.wg = wg
@@ -39,14 +39,14 @@ class FDEModes:
         self.mode.setactivesolver("FDE")
         self.N_sweep = N_sweep
         
-    def set_sim_region(self):
+    def set_sim_region(self, wavl):
         self.mode.switchtolayout()
         self.mode.setnamed("FDE", "y min", -1.0e-6)
         self.mode.setnamed("FDE", "y max", self.wg.height + 1.0e-6)
         self.mode.setnamed("FDE", "x", 0)
-        self.mode.setnamed("FDE", "x span", self.wg.width + 2*1.5*self.wavl_0)
+        self.mode.setnamed("FDE", "x span", self.wg.width + 2*1.5*wavl)
         self.mode.setnamed("mesh", "x", 0)
-        self.mode.setnamed("mesh", "x span", self.wg.width + 2*1.5*self.wavl_0)  
+        self.mode.setnamed("mesh", "x span", self.wg.width + 2*1.5*wavl)  
             # PMLs general rule of thumb, ~1.5λ from edges of the waveguide core.
 
     def set_boundary_cds(self):
@@ -64,40 +64,40 @@ class FDEModes:
         self.mode.setnamed("structure::guide", "y max", self.wg.height)
         self.mode.setnamed("structure::pedestal", "y min", 0)
         self.mode.setnamed("structure::pedestal", "y max", self.wg.height - self.wg.etch)
-    
-    def select_mode(self):
-        mode_list = [str for str in self.mode.getresult().split('\n') if 'mode' in str]
-        pol_TE = dict([(j,self.mode.getdata(j, "TE polarization fraction")) for j in 
-                        [i.split('::')[2] for i in mode_list]])
-        if self.is_TE:
-            filtered_TE_pol = {key:te for key, te in pol_TE.items() if te > self.te_threshold}
-            self.mode.selectmode(list(filtered_TE_pol.keys())[0])
-        else:
-            filtered_TE_pol = {key:te for key, te in pol_TE.items() if te < 1 - self.te_threshold}
-            self.mode.selectmode(list(filtered_TE_pol.keys())[0])
-        return filtered_TE_pol
 
-    def solve_modes(self):
+    def solve_modes(self, wavl, trial_modes=4):
         self.set_geometry()
-        self.set_sim_region()
+        self.set_sim_region(wavl)
         self.set_boundary_cds()
         self.mode.run()
         self.mode.switchtolayout()
-        self.mode.set("wavelength", self.wavl_0)
-        self.mode.setanalysis("number of trial modes", self.trial_modes)
+        self.mode.set("wavelength", wavl)
+        self.mode.setanalysis("number of trial modes", trial_modes)
         self.mode.findmodes()
         data = self.select_mode()
         return data
 
-    def sweep(self):
+    def select_mode(self, is_TE=True, te_threshold=0.96):
+        mode_list = [str for str in self.mode.getresult().split('\n') if 'mode' in str]
+        pol_TE = dict([(j,self.mode.getdata(j, "TE polarization fraction")) for j in 
+                        [i.split('::')[2] for i in mode_list]])
+        if is_TE:
+            filtered_TE_pol = {key:te for key, te in pol_TE.items() if te > te_threshold}
+            self.mode.selectmode(list(filtered_TE_pol.keys())[0])
+        else:
+            filtered_TE_pol = {key:te for key, te in pol_TE.items() if te < 1 - te_threshold}
+            self.mode.selectmode(list(filtered_TE_pol.keys())[0])
+        return filtered_TE_pol
+
+    def sweep(self, wavl, wavl_bw, trial_modes, N_sweep):
         self.mode.switchtolayout()
-        wavl_start = self.wavl_0
-        wavl_end   = self.wavl_0 + self.wavl_bw
+        wavl_start = wavl
+        wavl_end   = wavl + wavl_bw
         self.mode.set("wavelength", wavl_start)
-        self.solve_modes()
+        self.solve_modes(wavl, trial_modes)
         self.mode.setanalysis("track selected mode", 1)
         self.mode.setanalysis("stop wavelength", wavl_end)
-        self.mode.setanalysis("number of points", self.N_sweep)
+        self.mode.setanalysis("number of points", N_sweep)
         self.mode.setanalysis("number of test modes", 3)  # recommended by Lumerical
         self.mode.setanalysis("detailed dispersion calculation", 1)
         self.mode.setanalysis("store mode profiles while tracking", 1)
@@ -108,22 +108,7 @@ class FDEModes:
         n_effs = np.real(self.mode.getdata("FDE::data::frequencysweep", "neff"))
         n_grps = c0 / np.real(self.mode.getdata("FDE::data::frequencysweep", "vg"))
         return n_effs, n_grps, lambdas, E_temp, H_temp
-        
-    def get_dxdy(self, sim_data):
-        xax = np.diff(sim_data.xaxis).reshape(len(np.diff(sim_data.xaxis)),1)
-        yax = np.diff(sim_data.yaxis).reshape(len(np.diff(sim_data.yaxis)),1)
-        coordmat = xax*np.transpose(yax)
-        realcoordmat = np.zeros(np.shape(sim_data.E_fields))
-        realcoordmat[:,:,:coordmat.shape[0],:coordmat.shape[1]] = coordmat
-        return realcoordmat
 
-    def compute_Aeff(self, sim_data):
-        dA = self.get_dxdy(sim_data)
-        e = [sim_data.E_fields[i] for i in range(np.shape(sim_data.lambdas)[0])]
-        h = [sim_data.H_fields[i] for i in range(np.shape(sim_data.lambdas)[0])]
-        Sxy = [(1/2)*np.real(E[0]*np.conj(H[1]) - E[1]*np.conj(H[0])) for E in e for H in h]
-        A_eff = np.array([(Sxy[i]*dA[i][0]).sum() for i in range(np.shape(sim_data.lambdas)[0])])
-        return np.expand_dims(A_eff, axis=1)
 
     def return_wg_data(self):
         if self.wavl_bw != 0:
@@ -168,10 +153,24 @@ class SimulationData:
         self.xaxis = xaxis
         self.yaxis = yaxis
         self.index = index
-        self.E_fields = E_fields # Ordering: [lambdas, (Ex,Ey,Ez), field matrix]
+        self.E_fields = E_fields  # Ordering: [lambdas, (x,y,z)-comp, field matrix]
         self.H_fields = H_fields
         self.n_grps = n_grps
         self.n_effs = n_effs
+    def get_dxdy(self):
+        xax = np.diff(self.xaxis).reshape(len(np.diff(self.xaxis)),1)
+        yax = np.diff(self.yaxis).reshape(len(np.diff(self.yaxis)),1)
+        coordmat = xax*np.transpose(yax)
+        realcoordmat = np.zeros(np.shape(self.E_fields))
+        realcoordmat[:,:,:coordmat.shape[0],:coordmat.shape[1]] = coordmat
+        return realcoordmat
+    def compute_Aeff(self, sim_data):
+        dA = self.get_dxdy(sim_data)
+        e = [sim_data.E_fields[i] for i in range(np.shape(sim_data.lambdas)[0])]
+        h = [sim_data.H_fields[i] for i in range(np.shape(sim_data.lambdas)[0])]
+        Sxy = [(1/2)*np.real(E[0]*np.conj(H[1]) - E[1]*np.conj(H[0])) for E in e for H in h]
+        A_eff = np.array([(Sxy[i]*dA[i][0]).sum() for i in range(np.shape(sim_data.lambdas)[0])])
+        return np.expand_dims(A_eff, axis=1)
     def store_dxdy(self, dxdy):
         self.dxdy = dxdy
     def store_A_eff(self,A_eff):
