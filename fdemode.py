@@ -97,10 +97,10 @@ class ModeSimulator:
         mode_id = "FDE::data::"+mode_ids[0]
         # Package simulation data
         wavl = c0 / self.mode.getdata(mode_id, "f")
-        E_field = [self.mode.getdata(mode_id, s)[:,:,0,0]
-            for s in ("Ex","Ey","Ez")]
-        H_field = [self.mode.getdata(mode_id, s)[:,:,0,0]
-            for s in ("Hx","Hy","Hz")]
+        E_field = np.expand_dims([self.mode.getdata(mode_id, s)[:,:,0,0] 
+            for s in ("Ex","Ey","Ez")], axis=0)
+        H_field = np.expand_dims([self.mode.getdata(mode_id, s)[:,:,0,0] 
+            for s in ("Hx","Hy","Hz")], axis=0)
         n_grp = [self.mode.getdata(mode_id, "ng")][0]
         n_eff = [self.mode.getdata(mode_id, "neff")][0]
         return SimulationData(self.wg, self.xaxis, self.yaxis, self.index,
@@ -145,16 +145,16 @@ class SimulationData:
 
     @property
     def dxdy(self):
-        xax = np.diff(self.xaxis).reshape(len(np.diff(self.xaxis)),1)
-        yax = np.diff(self.yaxis).reshape(len(np.diff(self.yaxis)),1)
+        xax = np.expand_dims(np.diff(self.xaxis, prepend=0),axis=1)
+        yax = np.expand_dims(np.diff(self.yaxis, prepend=0),axis=1)
         return xax*np.transpose(yax)
 
     def compute_Aeff(self):
         dA = self.dxdy
-        e = [self.E_field[i] for i in range(np.shape(self.wavelength)[0])]
-        h = [self.H_field[i] for i in range(np.shape(self.wavelength)[0])]
+        wavl_size = np.shape(np.array(self.wavelength).reshape(np.size(self.wavelength),1))[0]
+        e = [self.E_field[i] for i in range(wavl_size)]
+        h = [self.H_field[i] for i in range(wavl_size)]
         Sxy = [(1/2)*np.real(E[0]*np.conj(H[1]) - E[1]*np.conj(H[0]))
             for E in e for H in h]
-        A_eff = np.array([(Sxy[i]*dA[i][0]).sum()
-            for i in range(np.shape(self.wavelength)[0])])
+        A_eff = [(Sxy[i]*dA).sum() for i in range(wavl_size)]
         return np.expand_dims(A_eff, axis=1)
