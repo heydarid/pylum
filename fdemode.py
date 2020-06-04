@@ -82,7 +82,7 @@ class ModeSimulator:
 
     def filtered_modes(self, pol_thres, pol):
         mode_ids = [s.split("::")[2] for s in self.mode.getresult().split('\n')
-            if 'mode' in s] # Is there a better way?
+            if 'mode' in s]
         return [i for i in mode_ids
             if self.mode.getdata(i, pol+" polarization fraction") > pol_thres]
 
@@ -92,15 +92,14 @@ class ModeSimulator:
     def solve_mode(self, wavl, trial_modes=4, pol_thres=0.96, pol="TE", mode_ind=0):
         # Run simulation
         self._find_modes(wavl, trial_modes)
-        mode_ids = self.filtered_modes(pol_thres, pol)
-        self.select_mode(mode_ids[mode_ind]) # Can this take FDE::data::mode1?
-        mode_id = "FDE::data::"+mode_ids[0]
+        mode_id = self.filtered_modes(pol_thres, pol)[mode_ind]
+        self.select_mode(mode_id)
         # Package simulation data
         wavl = c0 / self.mode.getdata(mode_id, "f")
-        E_field = np.expand_dims([self.mode.getdata(mode_id, s)[:,:,0,0] 
-            for s in ("Ex","Ey","Ez")], axis=0)
-        H_field = np.expand_dims([self.mode.getdata(mode_id, s)[:,:,0,0] 
-            for s in ("Hx","Hy","Hz")], axis=0)
+        E_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
+            for s in ("Ex","Ey","Ez")]
+        H_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
+            for s in ("Hx","Hy","Hz")]
         n_grp = [self.mode.getdata(mode_id, "ng")][0]
         n_eff = [self.mode.getdata(mode_id, "neff")][0]
         return SimulationData(self.wg, self.xaxis, self.yaxis, self.index,
@@ -111,12 +110,12 @@ class ModeSimulator:
         self._find_modes(wavl_start, trial_modes)
         self.select_mode(self.filtered_modes(pol_thres,pol)[mode_ind])
         # Run sweep
-        self.mode.setanalysis("track selected mode", 1) # Can this use True?
+        self.mode.setanalysis("track selected mode", True)
         self.mode.setanalysis("stop wavelength", wavl_start + wavl_span)
         self.mode.setanalysis("number of points", N_sweep)
         self.mode.setanalysis("number of test modes", 3) # Recommended
-        self.mode.setanalysis("detailed dispersion calculation", 1)
-        self.mode.setanalysis("store mode profiles while tracking", 1)
+        self.mode.setanalysis("detailed dispersion calculation", True)
+        self.mode.setanalysis("store mode profiles while tracking", True)
         self.mode.frequencysweep()
         # Package sweep data
         wavls = c0 / self.mode.getdata("FDE::data::frequencysweep", "f")
@@ -134,7 +133,7 @@ class ModeSimulator:
 class SimulationData:
     def __init__(self, wg, xaxis, yaxis, index, wavel, E_field, H_field, n_grp, n_eff):
         self.waveguide = wg
-        self.wavelength = wavel
+        self.wavl = wavel
         self.xaxis = xaxis
         self.yaxis = yaxis
         self.index = index
@@ -149,12 +148,13 @@ class SimulationData:
         yax = np.expand_dims(np.diff(self.yaxis, prepend=0),axis=1)
         return xax*np.transpose(yax)
 
+    @staticmethod
+    def _compute_Aeff(E, H, dA):
+        S = (1/2)*np.real(E[0]*np.conj(H[1]) - E[1]*np.conj(H[0]))
+        return (S*dA).sum()
+    
     def compute_Aeff(self):
-        dA = self.dxdy
-        wavl_size = np.shape(np.array(self.wavelength).reshape(np.size(self.wavelength),1))[0]
-        e = [self.E_field[i] for i in range(wavl_size)]
-        h = [self.H_field[i] for i in range(wavl_size)]
-        Sxy = [(1/2)*np.real(E[0]*np.conj(H[1]) - E[1]*np.conj(H[0]))
-            for E in e for H in h]
-        A_eff = [(Sxy[i]*dA).sum() for i in range(wavl_size)]
-        return np.expand_dims(A_eff, axis=1)
+        if isinstance(self.wavl,list):
+            return [self._compute_Aeff(E,H, self.dxdy)
+                for E,H in zip(self.E_field,self.H_field)]
+        return self._compute_Aeff(self.E_field,self.H_field,self.dxdy)
