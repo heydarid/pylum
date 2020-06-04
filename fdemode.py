@@ -26,14 +26,13 @@ mu0 = sc.mu_0
 eps0 = sc.epsilon_0
 Z0 = 1/np.sqrt(eps0/mu0)
 
-class ModeSimulator:
+class FDEModeSimulator:
     def __init__(self, wg, hideGUI=True):
         self.mode = lumapi.MODE(fileDir + '/template/waveguide_get_modes.lms',
             hide=hideGUI)
         self.wg = wg
         self.mode.switchtolayout()
         self.mode.setactivesolver("FDE")
-    
     @property
     def xaxis(self):
         return self.mode.getdata("FDE::data::material", "x")[:,0]
@@ -44,23 +43,7 @@ class ModeSimulator:
     def index(self):
         return self.mode.getdata("FDE::data::material", "index_y")[:,:,0,0]
     
-    def set_sim_region(self, wavl):
-        # PMLs general rule of thumb, ~1.5λ from edges of the waveguide core
-        self.mode.switchtolayout()
-        self.mode.setnamed("FDE", "y min", -1e-6)
-        self.mode.setnamed("FDE", "y max", self.wg.height + 1e-6)
-        self.mode.setnamed("FDE", "x", 0)
-        self.mode.setnamed("FDE", "x span", self.wg.width + 2*1.5*wavl)
-        self.mode.setnamed("mesh", "x", 0)
-        self.mode.setnamed("mesh", "x span", self.wg.width + 2*1.5*wavl)
-
-    def set_boundary_cds(self):
-        self.mode.setnamed("FDE", "x min bc", "Anti-Symmetric")
-        self.mode.setnamed("FDE", "x max bc", "PML")
-        self.mode.setnamed("FDE", "y min bc", "Metal")
-        self.mode.setnamed("FDE", "y max bc", "Metal")
-
-    def set_geometry(self):
+    def _set_geometry(self):
         self.mode.switchtolayout()
         self.mode.setnamed("structure::guide", "x", 0)
         self.mode.setnamed("structure::pedestal", "x", 0)
@@ -70,10 +53,29 @@ class ModeSimulator:
         self.mode.setnamed("structure::pedestal", "y min", 0)
         self.mode.setnamed("structure::pedestal", "y max", self.wg.height - self.wg.etch)
 
+    def _set_sim_region(self, pml_wavl, mesh):
+        # PMLs general rule of thumb, ~1.5λ from edges of the waveguide core
+        self.mode.switchtolayout()
+        self.mode.setnamed("FDE", "y min", -1e-6)
+        self.mode.setnamed("FDE", "y max", self.wg.height + 1e-6)
+        self.mode.setnamed("FDE", "x", 0)
+        self.mode.setnamed("FDE", "x span", self.wg.width + 2*1.5*pml_wavl)
+        self.mode.setnamed("mesh", "x", 0)
+        self.mode.setnamed("mesh", "x span", self.wg.width + 2*1.5*pml_wavl)
+        self.mode.setnamed("mesh", "enabled", mesh)
+
+    def _set_boundary_cds(self):
+        self.mode.setnamed("FDE", "x min bc", "Anti-Symmetric")
+        self.mode.setnamed("FDE", "x max bc", "PML")
+        self.mode.setnamed("FDE", "y min bc", "Metal")
+        self.mode.setnamed("FDE", "y max bc", "Metal")
+
+    def setup_sim(self, pml_wavl, mesh=False):
+        self._set_geometry()
+        self._set_sim_region(pml_wavl, mesh)
+        self._set_boundary_cds()
+
     def _find_modes(self, wavl, trial_modes):
-        self.set_geometry()
-        self.set_sim_region(wavl)
-        self.set_boundary_cds()
         self.mode.run()
         self.mode.switchtolayout()
         self.mode.set("wavelength", wavl)
@@ -102,8 +104,7 @@ class ModeSimulator:
             for s in ("Hx","Hy","Hz")]
         n_grp = [self.mode.getdata(mode_id, "ng")][0]
         n_eff = [self.mode.getdata(mode_id, "neff")][0]
-        return SimulationData(self.wg, self.xaxis, self.yaxis, self.index,
-            wavl, E_field, H_field, n_grp, n_eff)
+        return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavl, E_field, H_field, n_grp, n_eff)
 
     def run_sweep(self, wavl_start, wavl_span, N_sweep, trial_modes=4, pol_thres=0.96, pol="TE", mode_ind=0):
         # Find starting mode
@@ -127,27 +128,25 @@ class ModeSimulator:
         H_fields = [[H[:,:,0,ind,0] for H in H_temp] for ind in range(N_sweep)]
         vgs = np.real(self.mode.getdata("FDE::data::frequencysweep", "vg"))
         n_effs = np.real(self.mode.getdata("FDE::data::frequencysweep", "neff"))
-        return SimulationData(self.wg, self.xaxis, self.yaxis, self.index,
-            wavls, E_fields, H_fields, c0/vgs, n_effs)
+        return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavls, E_fields, H_fields, c0/vgs, n_effs)
 
-class SimulationData:
-    def __init__(self, wg, xaxis, yaxis, index, wavel, E_field, H_field, n_grp, n_eff):
-        self.waveguide = wg
-        self.wavl = wavel
+class FDEModeSimData:
+    def __init__(self, xaxis, yaxis, index, wavel, E_field, H_field, n_grp, n_eff):
         self.xaxis = xaxis
         self.yaxis = yaxis
+        self.wavl = wavel
         self.index = index
         self.E_field = E_field
         self.H_field = H_field
         self.n_grps = n_grp
         self.n_effs = n_eff
-
+    
     @property
     def dxdy(self):
         xax = np.expand_dims(np.diff(self.xaxis, prepend=0),axis=1)
         yax = np.expand_dims(np.diff(self.yaxis, prepend=0),axis=1)
         return xax*np.transpose(yax)
-
+    
     @staticmethod
     def _compute_Aeff(E, H, dA):
         S = (1/2)*np.real(E[0]*np.conj(H[1]) - E[1]*np.conj(H[0]))
