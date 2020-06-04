@@ -142,19 +142,19 @@ class SimulationData:
         self.H_field = H_field
         self.n_grps = n_grp
         self.n_effs = n_eff
-    
+
     @property
     def dxdy(self):
         xax = np.diff(self.xaxis).reshape(len(np.diff(self.xaxis)),1)
         yax = np.diff(self.yaxis).reshape(len(np.diff(self.yaxis)),1)
         return xax*np.transpose(yax)
-    
-    def compute_Aeff(self, sim_data):
-        dA = self.dxdy()
-        e = [sim_data.E_fields[i] for i in range(np.shape(sim_data.lambdas)[0])]
-        h = [sim_data.H_fields[i] for i in range(np.shape(sim_data.lambdas)[0])]
+
+    def compute_Aeff(self):
+        dA = self.dxdy
+        e = [self.E_field[i] for i in range(np.shape(self.wavelength)[0])]
+        h = [self.H_field[i] for i in range(np.shape(self.wavelength)[0])]
         Sxy = [(1/2)*np.real(E[0]*np.conj(H[1]) - E[1]*np.conj(H[0]))
             for E in e for H in h]
         A_eff = np.array([(Sxy[i]*dA[i][0]).sum()
-            for i in range(np.shape(sim_data.lambdas)[0])])
+            for i in range(np.shape(self.wavelength)[0])])
         return np.expand_dims(A_eff, axis=1)
