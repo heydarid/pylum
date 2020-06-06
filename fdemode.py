@@ -22,7 +22,6 @@ mu0 = sc.mu_0
 eps0 = sc.epsilon_0
 Z0 = 1/np.sqrt(eps0/mu0)
 
-from structure.ridge_wg import RidgeWaveguideEnvironment
 # environment = RidgeWaveguideEnvironment(wg, hideGUI)
 class FDEModeSimulator:
     def __init__(self, environment):

@@ -20,6 +20,13 @@ mu0 = sc.mu_0
 eps0 = sc.epsilon_0
 Z0 = 1/np.sqrt(eps0/mu0)
 
-# wg = structure.Waveguide()
-def get_Delta_n(wg, gap, wavl_oper):
-    return None
+class FDECoupledModeSimulator:
+    def __init__(self):
+        pass
+
+class FDECoupledModeSimData:
+    def __init__(self):
+        pass
+
+def get_Delta_n(self, gap, wavl_oper):
+    pass
