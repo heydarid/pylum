@@ -1,6 +1,5 @@
 """
-Purpose:    General purpose waveguide constructor for use in
-                any Lumerical simulation.
+Purpose:    General purpose waveguide constructor.
             All units SI unless otherwise specified.
 Copyright:   (c) May 2020 David Heydari, Edwin Ng
 """

@@ -1,10 +1,6 @@
 """
-Purpose:     FDFD eigenmode (FDE) mode-solver that collects relevant data from Lumerical MODE
-                FDE mode simulation instance simulating a pre-defined structure.
-Structure:   Ridge-waveguide composed of air-Si-SiO2-Si(substrate)
-             Simulation region is cross-section of waveguide in xy, at some z-slice
-             Pre-selects the TE mode (highly Ex) for our nonlinear optics project preferences.
-
+Purpose:    FDFD eigenmode (FDE) mode-solver that collects relevant data from Lumerical(R) MODE(TM)
+            FDE mode simulation instance simulating a ridge-waveguide.
             Units are SI unless otherwise noted.
 Useful links:
 https://support.lumerical.com/hc/en-us/articles/360034917233-MODE-Finite-Difference-Eigenmode-FDE-solver-introduction
@@ -26,13 +22,14 @@ mu0 = sc.mu_0
 eps0 = sc.epsilon_0
 Z0 = 1/np.sqrt(eps0/mu0)
 
+from structure.ridge_wg import RidgeWaveguideEnvironment
+# environment = RidgeWaveguideEnvironment(wg, hideGUI)
 class FDEModeSimulator:
-    def __init__(self, wg, hideGUI=True):
-        self.mode = lumapi.MODE(fileDir + '/template/waveguide_get_modes.lms',
-            hide=hideGUI)
-        self.wg = wg
+    def __init__(self, environment):
+        self.environment = environment
+        self.mode = environment.mode
+        self.wg = environment.wg
         self.mode.switchtolayout()
-        self.mode.setactivesolver("FDE")
     @property
     def xaxis(self):
         return self.mode.getdata("FDE::data::material", "x")[:,0]
@@ -42,24 +39,26 @@ class FDEModeSimulator:
     @property
     def index(self):
         return self.mode.getdata("FDE::data::material", "index_y")[:,:,0,0]
-    
-    def _set_geometry(self):
-        self.mode.switchtolayout()
-        self.mode.setnamed("structure::guide", "x", 0)
-        self.mode.setnamed("structure::pedestal", "x", 0)
-        self.mode.setnamed("structure::guide", "x span", self.wg.width)
-        self.mode.setnamed("structure::guide", "y min", 0)
-        self.mode.setnamed("structure::guide", "y max", self.wg.height)
-        self.mode.setnamed("structure::pedestal", "y min", 0)
-        self.mode.setnamed("structure::pedestal", "y max", self.wg.height - self.wg.etch)
+
+    def _add_fde(self):
+        self.mode.addfde()
+    def _add_mesh(self):
+        self.mode.addmesh()
+
+    def _close_application(self):
+        print("Emergency close!")
+        self.mode.close(True)
 
     def _set_sim_region(self, pml_wavl, mesh):
         # PMLs general rule of thumb, ~1.5λ from edges of the waveguide core
-        self.mode.switchtolayout()
+        self._add_fde()
+        self._add_mesh()
         self.mode.setnamed("FDE", "y min", -1e-6)
         self.mode.setnamed("FDE", "y max", self.wg.height + 1e-6)
         self.mode.setnamed("FDE", "x", 0)
         self.mode.setnamed("FDE", "x span", self.wg.width + 2*1.5*pml_wavl)
+        self.mode.setnamed("mesh", "y min", 0)
+        self.mode.setnamed("mesh", "y max", self.wg.height)
         self.mode.setnamed("mesh", "x", 0)
         self.mode.setnamed("mesh", "x span", self.wg.width + 2*1.5*pml_wavl)
         self.mode.setnamed("mesh", "enabled", mesh)
@@ -71,14 +70,14 @@ class FDEModeSimulator:
         self.mode.setnamed("FDE", "y max bc", "Metal")
 
     def setup_sim(self, pml_wavl, mesh=False):
-        self._set_geometry()
+        self.mode.switchtolayout()
+        self.environment.produce_environment(self.wg, pml_wavl)
         self._set_sim_region(pml_wavl, mesh)
         self._set_boundary_cds()
 
     def _find_modes(self, wavl, trial_modes):
-        self.mode.run()
         self.mode.switchtolayout()
-        self.mode.set("wavelength", wavl)
+        self.mode.setnamed("FDE", "wavelength", wavl)
         self.mode.setanalysis("number of trial modes", trial_modes)
         self.mode.findmodes()
 
