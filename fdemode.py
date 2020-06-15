@@ -151,7 +151,7 @@ class FDEModeSimData:
         return (S*dA).sum()
     
     def compute_Aeff(self):
-        if isinstance(self.wavl,list):
+        if isinstance(self.wavl,(list,np.ndarray)):
             return [self._compute_Aeff(E,H, self.dxdy)
                 for E,H in zip(self.E_field,self.H_field)]
         return self._compute_Aeff(self.E_field,self.H_field,self.dxdy)
@@ -159,11 +159,11 @@ class FDEModeSimData:
     def clip_fields(self, x, y):
         mask_x = (x[0] < self.xaxis) & (self.xaxis < x[-1])
         mask_y = (y[0] < self.yaxis) & (self.yaxis < y[-1])
-        if isinstance(self.wavl,list):
-            E_field = [[Ek[mask_x,mask_y] for Ek in E] for E in self.E_field]
-            H_field = [[Hk[mask_x,mask_y] for Hk in H] for H in self.H_field]
+        if isinstance(self.wavl,(list,np.ndarray)):
+            E_field = [[Ek[mask_x,:][:,mask_y] for Ek in E] for E in self.E_field]
+            H_field = [[Hk[mask_x,:][:,mask_y] for Hk in H] for H in self.H_field]
         else:
-            E_field = [Ek[mask_x,mask_y] for Ek in self.E_field]
-            H_field = [Hk[mask_x,mask_y] for Hk in self.H_field]
+            E_field = [Ek[mask_x,:][:,mask_y] for Ek in self.E_field]
+            H_field = [Hk[mask_x,:][:,mask_y] for Hk in self.H_field]
         return FDEModeSimData(self.xaxis[mask_x], self.yaxis[mask_y],
             self.index, self.wavl, E_field, H_field, self.n_grps, self.n_effs)
