@@ -68,9 +68,9 @@ class FDEModeSimulator:
         self.mode.setnamed("FDE", "y min bc", "Metal")
         self.mode.setnamed("FDE", "y max bc", "Metal")
 
-    def setup_sim(self, pml_wavl, mesh=False):
+    def setup_sim(self, pml_wavl, cap_thickness=0.5e-6, subs_thickness=3e-6, mesh=False):
         self.mode.switchtolayout()
-        self.environment.produce_environment(self.wg, pml_wavl)
+        self.environment.produce_environment(self.wg, pml_wavl, cap_thickness, subs_thickness)
         self._set_sim_region(pml_wavl, mesh)
         self._set_boundary_cds()
 

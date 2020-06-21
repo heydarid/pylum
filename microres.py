@@ -15,7 +15,7 @@ import lumapi
 import scipy.constants as sc
 import numpy as np
 pi = np.pi
-c0 = sc.physical_constants["speed of light in vacuum"][0]
+c0 = sc.physical_constants["speed of light in vacuum"][0] 
 mu0 = sc.mu_0
 eps0 = sc.epsilon_0
 Z0 = 1/np.sqrt(eps0/mu0)

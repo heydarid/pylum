@@ -16,6 +16,12 @@ import lumapi
 
 import pylum.material.materials as materials
 from pylum.structure.ridge_wg import RidgeWaveguideEnvironment
+from pylum.structure.waveguide import Waveguide
+
+class CoupledWaveguide(Waveguide):
+    def __init__(self, width_l, width_r, height, etch_l, etch_r):
+        super().__init__(width_l, height, etch_l)
+                
 
 class CoupledRidgeWaveguideEnvironment(RidgeWaveguideEnvironment):
     default_params = OrderedDict([
@@ -30,5 +36,6 @@ class CoupledRidgeWaveguideEnvironment(RidgeWaveguideEnvironment):
         self.wg = wg
 
     def _create_coupled_guides(self):
-        # super().
-        pass
+        super()._create_structures()
+        
+    def produce_environment(self):
