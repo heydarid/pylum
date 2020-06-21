@@ -18,10 +18,13 @@ import pylum.material.materials as materials
 from pylum.structure.ridge_wg import RidgeWaveguideEnvironment
 from pylum.structure.waveguide import Waveguide
 
-class CoupledWaveguide(Waveguide):
+class CoupledWaveguide:
     def __init__(self, width_l, width_r, height, etch_l, etch_r):
-        super().__init__(width_l, height, etch_l)
-                
+        self.width_l = width_l
+        self.width_r = width_r
+        self.height = height
+        self.etch_l = etch_l
+        self.etch_r = etch_r
 
 class CoupledRidgeWaveguideEnvironment(RidgeWaveguideEnvironment):
     default_params = OrderedDict([
