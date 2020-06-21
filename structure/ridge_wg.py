@@ -17,6 +17,8 @@ import lumapi
 
 import pylum.material.materials as materials
 
+# TODO: use regex to simplify the code
+
 class RidgeWaveguideEnvironment:
     default_params = OrderedDict([
     ## default ridge waveguide material settings
@@ -53,6 +55,7 @@ class RidgeWaveguideEnvironment:
     def create_structures(self):
         self._create_substrate()
         self._create_pedestals()
+        self._create_claddings()
         self._create_core()
 
     def _add_to_core_group(self, name):
@@ -73,7 +76,9 @@ class RidgeWaveguideEnvironment:
         self.mode.setnamed(name + "::pedestal_r", "material", core_material)
 
     def _set_cap_material(self, cap_material, name):
-        self.mode.setnamed(name + "::cladding", "material", cap_material)
+        self.mode.setnamed(name + "::cladding_core", "material", cap_material)
+        self.mode.setnamed(name + "::clad_pedestal_l", "material", cap_material)
+        self.mode.setnamed(name + "::clad_pedestal_r", "material", cap_material)
 
     def set_group_material(self, name, params=default_params):
         subs_material = params['subs_mat']
@@ -84,7 +89,13 @@ class RidgeWaveguideEnvironment:
         self._set_core_material(core_material, name)
 
     def set_mesh_orders(self, name):
-        self.mode.select(name + "::cladding")
+        self.mode.select(name + "::cladding_core")
+        self.mode.set("override mesh order from material database", True)
+        self.mode.set("mesh order", 4)
+        self.mode.select(name + "::clad_pedestal_l")
+        self.mode.set("override mesh order from material database", True)
+        self.mode.set("mesh order", 4)
+        self.mode.select(name + "::clad_pedestal_r")
         self.mode.set("override mesh order from material database", True)
         self.mode.set("mesh order", 4)
         self.mode.select(name + "::guide")
@@ -104,7 +115,7 @@ class RidgeWaveguideEnvironment:
         self.mode.setnamed("substrate", "y min", -subs_thickness)
         self.mode.setnamed("substrate", "y max", 0)
 
-    def _set_pedestal_geometry(self, wavl, wg, name, left, right):
+    def _set_pedestal_geometry(self, name, wavl, wg):
         self.mode.switchtolayout()
         self.mode.setnamed(name + "::pedestal_l", "x min", -10*wavl)
         self.mode.setnamed(name + "::pedestal_l", "x max", 0)
@@ -115,32 +126,49 @@ class RidgeWaveguideEnvironment:
         self.mode.setnamed(name + "::pedestal_r", "x max", 10*wavl)
         self.mode.setnamed(name + "::pedestal_r", "y min", 0)
         self.mode.setnamed(name + "::pedestal_r", "y max", self.wg.height - self.wg.etch)
+    
+    def _set_cladding_geometry(self, name, wavl, cap_thickness, x_core):
+        self.mode.switchtolayout()
+        self.mode.setnamed(name + "::cladding_core", "x", x_core)
+        self.mode.setnamed(name + "::cladding_core", "x span", self.wg.width + cap_thickness)
+        self.mode.setnamed(name + "::cladding_core", "y min", 0)
+        self.mode.setnamed(name + "::cladding_core", "y max", self.wg.height + cap_thickness)
 
+        self.mode.setnamed(name + "::clad_pedestal_l", "x min", -10*wavl)
+        self.mode.setnamed(name + "::clad_pedestal_l", "x max", 0)
+        self.mode.setnamed(name + "::clad_pedestal_l", "y min", 0)
+        self.mode.setnamed(name + "::clad_pedestal_l", "y max", self.wg.height - self.wg.etch + cap_thickness)
+        
+        self.mode.setnamed(name + "::clad_pedestal_r", "x min", 0)
+        self.mode.setnamed(name + "::clad_pedestal_r", "x max", 10*wavl)
+        self.mode.setnamed(name + "::clad_pedestal_r", "y min", 0)
+        self.mode.setnamed(name + "::clad_pedestal_r", "y max", self.wg.height - self.wg.etch + cap_thickness)
+
+    def _enable_pedestal(self, name, left, right):
+        self.mode.switchtolayout()
         self.mode.setnamed(name + "::pedestal_l", "enabled", left)
         self.mode.setnamed(name + "::pedestal_r", "enabled", right)
         self.mode.setnamed(name + "::clad_pedestal_l", "enabled", left)
         self.mode.setnamed(name + "::clad_pedestal_r", "enabled", right)
-    
-    def _set_core_geometry(self, wg, cap_thickness, x_core):
+
+    def _set_core_geometry(self, name, wg, cap_thickness, x_core):
         self.mode.switchtolayout()
-        self.mode.setnamed("structure::guide", "x", x_core)
-        self.mode.setnamed("structure::guide", "x span", self.wg.width)
-        self.mode.setnamed("structure::guide", "y min", 0)
-        self.mode.setnamed("structure::guide", "y max", self.wg.height)
-        
-        self.mode.setnamed("structure::cladding_core", "x", x_core)
-        self.mode.setnamed("structure::cladding_core", "x span", self.wg.width + cap_thickness)
-        self.mode.setnamed("structure::cladding_core", "y min", 0)
-        self.mode.setnamed("structure::cladding_core", "y max", self.wg.height + cap_thickness)
+        self.mode.setnamed(name + "::guide", "x", x_core)
+        self.mode.setnamed(name + "::guide", "x span", self.wg.width)
+        self.mode.setnamed(name + "::guide", "y min", 0)
+        self.mode.setnamed(name + "::guide", "y max", self.wg.height)
 
     def set_geometry(self, wavl, wg, name, subs_thickness, cap_thickness, 
         x_core, left, right):
         self._set_substrate_geometry(wavl, subs_thickness)
-        self._set_pedestal_geometry(wavl, wg, name, left, right)
-        self._set_core_geometry(wg, cap_thickness, x_core)
+        self._set_pedestal_geometry(name, wavl, wg)
+        self._set_cladding_geometry(name, wavl, cap_thickness, x_core)
+        self._set_core_geometry(name, wg, cap_thickness, x_core)
+        self._enable_pedestal(name, left, right)
 
     def produce_environment(self, wg, wavl, x_core=0, core_name="structure", 
             cap_thickness=0.5e-6, subs_thickness=3e-6, left=True, right=True):
+        self.mode.deleteall()
         self.create_structures()
         self._add_to_core_group(core_name)
         self.set_group_material(core_name)
