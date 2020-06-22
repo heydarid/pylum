@@ -41,8 +41,7 @@ class CoupledRidgeWaveguideEnvironment(RidgeWaveguideEnvironment):
         ('cap_mat', materials.silica),
         ])
     def __init__(self, coupled_wg, hideGUI=True):
-        super().__init__(coupled_wg, hideGUI)
-        self.mode = lumapi.MODE(hide=hideGUI)
+        super().__init__(coupled_wg)
         self.coupled_wg = coupled_wg
 
     def _create_gap_pedestal(self, cap_thickness):
@@ -64,6 +63,14 @@ class CoupledRidgeWaveguideEnvironment(RidgeWaveguideEnvironment):
     def _set_gap_geometry(self, params=default_params):
         self.mode.setnamed("gap", "material", params['core_mat'])
         self.mode.setnamed("gap_clad", "material", params['cap_mat'])
+
+    def _set_gap_mesh_order(self):
+        self.mode.select("gap_clad")
+        self.mode.set("override mesh order from material database", True)
+        self.mode.set("mesh order", 4)
+        self.mode.select("gap")
+        self.mode.set("override mesh order from material database", True)
+        self.mode.set("mesh order", 3)
 
     def create_structures(self):
         super()._create_pedestals()

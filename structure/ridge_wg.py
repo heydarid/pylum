@@ -115,14 +115,14 @@ class RidgeWaveguideEnvironment:
         self.mode.setnamed("substrate", "y min", -subs_thickness)
         self.mode.setnamed("substrate", "y max", 0)
 
-    def _set_pedestal_geometry(self, name, wavl, wg):
+    def _set_pedestal_geometry(self, name, wavl, wg, x_core):
         self.mode.switchtolayout()
         self.mode.setnamed(name + "::pedestal_l", "x min", -10*wavl)
-        self.mode.setnamed(name + "::pedestal_l", "x max", 0)
+        self.mode.setnamed(name + "::pedestal_l", "x max", x_core)
         self.mode.setnamed(name + "::pedestal_l", "y min", 0)
         self.mode.setnamed(name + "::pedestal_l", "y max", self.wg.height - self.wg.etch)
 
-        self.mode.setnamed(name + "::pedestal_r", "x min", 0)
+        self.mode.setnamed(name + "::pedestal_r", "x min", x_core)
         self.mode.setnamed(name + "::pedestal_r", "x max", 10*wavl)
         self.mode.setnamed(name + "::pedestal_r", "y min", 0)
         self.mode.setnamed(name + "::pedestal_r", "y max", self.wg.height - self.wg.etch)
@@ -135,11 +135,11 @@ class RidgeWaveguideEnvironment:
         self.mode.setnamed(name + "::cladding_core", "y max", self.wg.height + cap_thickness)
 
         self.mode.setnamed(name + "::clad_pedestal_l", "x min", -10*wavl)
-        self.mode.setnamed(name + "::clad_pedestal_l", "x max", 0)
+        self.mode.setnamed(name + "::clad_pedestal_l", "x max", x_core)
         self.mode.setnamed(name + "::clad_pedestal_l", "y min", 0)
         self.mode.setnamed(name + "::clad_pedestal_l", "y max", self.wg.height - self.wg.etch + cap_thickness)
         
-        self.mode.setnamed(name + "::clad_pedestal_r", "x min", 0)
+        self.mode.setnamed(name + "::clad_pedestal_r", "x min", x_core)
         self.mode.setnamed(name + "::clad_pedestal_r", "x max", 10*wavl)
         self.mode.setnamed(name + "::clad_pedestal_r", "y min", 0)
         self.mode.setnamed(name + "::clad_pedestal_r", "y max", self.wg.height - self.wg.etch + cap_thickness)
@@ -161,7 +161,7 @@ class RidgeWaveguideEnvironment:
     def set_geometry(self, wavl, wg, name, subs_thickness, cap_thickness, 
         x_core, left, right):
         self._set_substrate_geometry(wavl, subs_thickness)
-        self._set_pedestal_geometry(name, wavl, wg)
+        self._set_pedestal_geometry(name, wavl, wg, x_core)
         self._set_cladding_geometry(name, wavl, cap_thickness, x_core)
         self._set_core_geometry(name, wg, cap_thickness, x_core)
         self._enable_pedestal(name, left, right)
