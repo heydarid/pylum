@@ -167,11 +167,11 @@ class RidgeWaveguideEnvironment:
         self._enable_pedestal(name, left, right)
 
     def produce_environment(self, wg, wavl, x_core=0, core_name="structure", 
-            cap_thickness=0.5e-6, subs_thickness=3e-6, left=True, right=True):
+            cap_thickness=0.5e-6, subs_thickness=3e-6, left=True, right=True, params=default_params):
         self.mode.deleteall()
         self.create_structures()
         self._add_to_core_group(core_name)
-        self.set_group_material(core_name)
+        self.set_group_material(core_name, params)
         self.set_geometry(wavl, wg, core_name, subs_thickness, cap_thickness, 
             x_core, left, right)
         self.set_mesh_orders(core_name)
