@@ -41,7 +41,7 @@ class CoupledRidgeWaveguideEnvironment(RidgeWaveguideEnvironment):
         ('cap_mat', materials.silica),
         ])
     def __init__(self, coupled_wg, hideGUI=True):
-        super().__init__(coupled_wg)
+        super().__init__(coupled_wg, hideGUI)
         self.coupled_wg = coupled_wg
 
     def _create_gap_pedestal(self, cap_thickness):
@@ -95,8 +95,13 @@ class CoupledRidgeWaveguideEnvironment(RidgeWaveguideEnvironment):
             x_core=(self.coupled_wg.gap + self.coupled_wg.width_r)/2, left=False, right=True)
         super().set_mesh_orders("right_guide")
 
+    def produce_environment(self, wavl, subs_thickness, cap_thickness, params=default_params):
+        self.create_coupled_guides(wavl, subs_thickness, cap_thickness, params)
         self._create_gap_pedestal(cap_thickness)
         self._set_gap_geometry(params)
+        self._set_gap_mesh_order()
 
-    def produce_environment(self):
-        pass
+    def save_file(self, path):
+        self.mode.save(path)
+    def _close_application(self):
+        self.mode.exit(True)

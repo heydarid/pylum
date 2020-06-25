@@ -61,8 +61,11 @@ class FDEModeSimulator:
         self.mode.setnamed("mesh", "x span", self.wg.width + 2*1.5*pml_wavl)
         self.mode.setnamed("mesh", "enabled", mesh)
 
-    def _set_boundary_cds(self):
-        self.mode.setnamed("FDE", "x min bc", "Anti-Symmetric")
+    def _set_boundary_cds(self, symmetry=True):
+        if symmetry:
+            self.mode.setnamed("FDE", "x min bc", "Anti-Symmetric")
+        else:
+            self.mode.setnamed("FDE", "x min bc", "PML")
         self.mode.setnamed("FDE", "x max bc", "PML")
         self.mode.setnamed("FDE", "y min bc", "Metal")
         self.mode.setnamed("FDE", "y max bc", "Metal")
@@ -79,7 +82,7 @@ class FDEModeSimulator:
         self.mode.switchtolayout()
         self.mode.setnamed("FDE", "wavelength", wavl)
         self.mode.setanalysis("number of trial modes", trial_modes)
-        self.mode.findmodes()
+        return self.mode.findmodes()
 
     def filtered_modes(self, pol_thres, pol):
         mode_ids = [s.split("::")[2] for s in self.mode.getresult().split('\n')
