@@ -61,7 +61,7 @@ class FDEModeSimulator:
         self.mode.setnamed("mesh", "x span", self.wg.width + 2*1.5*pml_wavl)
         self.mode.setnamed("mesh", "enabled", mesh)
 
-    def _set_boundary_cds(self, symmetry=True):
+    def _set_boundary_cds(self, symmetry):
         if symmetry:
             self.mode.setnamed("FDE", "x min bc", "Anti-Symmetric")
         else:
@@ -70,13 +70,13 @@ class FDEModeSimulator:
         self.mode.setnamed("FDE", "y min bc", "Metal")
         self.mode.setnamed("FDE", "y max bc", "Metal")
 
-    def setup_sim(self, pml_wavl, x_core=0, core_name="structure",
+    def setup_sim(self, pml_wavl, x_core=0, core_name="structure", symmetry=True,
         cap_thickness=0.5e-6, subs_thickness=3e-6, left=True, right=True, mesh=False):
         self.mode.switchtolayout()
         self.environment.produce_environment(self.wg, pml_wavl, x_core, core_name, 
             cap_thickness, subs_thickness, left, right)
         self._set_sim_region(pml_wavl, mesh)
-        self._set_boundary_cds()
+        self._set_boundary_cds(symmetry)
 
     def _find_modes(self, wavl, trial_modes):
         self.mode.switchtolayout()
@@ -93,6 +93,17 @@ class FDEModeSimulator:
     def select_mode(self, mode_id):
         self.mode.selectmode(mode_id)
 
+    def package_data(self, mode_id):
+        # Package simulation data after selection of the mode.
+        wavl = c0 / self.mode.getdata(mode_id, "f")
+        E_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
+            for s in ("Ex","Ey","Ez")]
+        n_eff = [self.mode.getdata(mode_id, "neff")][0]
+        H_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
+            for s in ("Hx","Hy","Hz")]
+        n_grp = [self.mode.getdata(mode_id, "ng")][0]
+        return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavl, E_field, H_field, n_grp, n_eff)
+
     def solve_mode(self, wavl, trial_modes=4, pol_thres=0.96, pol="TE", mode_ind=0):
         # Run simulation
         self._find_modes(wavl, trial_modes)
@@ -102,13 +113,15 @@ class FDEModeSimulator:
         wavl = c0 / self.mode.getdata(mode_id, "f")
         E_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
             for s in ("Ex","Ey","Ez")]
+        n_eff = [self.mode.getdata(mode_id, "neff")][0][0][0]
         H_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
             for s in ("Hx","Hy","Hz")]
         n_grp = [self.mode.getdata(mode_id, "ng")][0]
-        n_eff = [self.mode.getdata(mode_id, "neff")][0]
         return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavl, E_field, H_field, n_grp, n_eff)
 
-    def run_sweep(self, wavl_start, wavl_span, N_sweep, trial_modes=4, pol_thres=0.96, pol="TE", mode_ind=0):
+
+    ## This sweep function has been depreciated (29/06/2020). ##
+    def run_lumer_sweep(self, wavl_start, wavl_span, N_sweep, trial_modes=4, pol_thres=0.96, pol="TE", mode_ind=0):
         # Find starting mode
         self._find_modes(wavl_start, trial_modes)
         self.select_mode(self.filtered_modes(pol_thres,pol)[mode_ind])
@@ -131,6 +144,35 @@ class FDEModeSimulator:
         vgs = np.real(self.mode.getdata("FDE::data::frequencysweep", "vg"))
         n_effs = np.real(self.mode.getdata("FDE::data::frequencysweep", "neff"))
         return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavls, E_fields, H_fields, c0/vgs, n_effs)
+
+    def run_sweep(self, wavl_center, wavl_span, N_sweep, trial_modes=4, pol_thres=0.96, pol="TE", mode_ind=0):
+        # Package simulation data
+        wavls = []
+        E_fields = []
+        H_fields = []
+        n_effs = []
+        n_grps = []
+        # Perform sweep
+        wavl_start = wavl_center - wavl_span/2
+        wavl_stop = wavl_center + wavl_span/2
+        for wavl_i in np.linspace(wavl_start, wavl_stop, N_sweep):
+            self._find_modes(wavl_i, trial_modes)
+            mode_id = self.filtered_modes(pol_thres, pol)[mode_ind]
+            self.select_mode(mode_id)
+            E_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
+                for s in ("Ex","Ey","Ez")]
+            n_eff = [self.mode.getdata(mode_id, "neff")][0]
+            H_field = [(Z0/n_eff)*self.mode.getdata(mode_id, s)[:,:,0,0] 
+                for s in ("Hx","Hy","Hz")]  # converting Lumerical to our normalization
+            n_grp = [self.mode.getdata(mode_id, "ng")][0]
+            E_fields.append(E_field)
+            H_fields.append(H_field)
+            n_effs.append(n_eff)
+            n_grps.append(n_grp)
+            wavls.append(wavl_i)
+        return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavls, np.array(E_fields), 
+            np.array(H_fields), np.array(n_grps), np.array(n_effs))
+
 
 class FDEModeSimData:
     def __init__(self, xaxis, yaxis, index, wavel, E_field, H_field, n_grp, n_eff):

@@ -23,12 +23,13 @@ class RidgeWaveguideEnvironment:
     default_params = OrderedDict([
     ## default ridge waveguide material settings
         ('subs_mat', materials.silica),
-        ('core_mat', materials.silicon),
+        ('core_mat', materials.silicon_nasa),
         ('cap_mat', materials.silica),
         ])
     def __init__(self, wg, hideGUI=True):
         self.mode = lumapi.MODE(hide=hideGUI)
         self.wg = wg
+        materials.make_Si_nasa(self.mode)
 
     def _create_substrate(self):  # run first
         self.mode.addrect()
@@ -130,7 +131,7 @@ class RidgeWaveguideEnvironment:
     def _set_cladding_geometry(self, name, wavl, cap_thickness, x_core):
         self.mode.switchtolayout()
         self.mode.setnamed(name + "::cladding_core", "x", x_core)
-        self.mode.setnamed(name + "::cladding_core", "x span", self.wg.width + cap_thickness)
+        self.mode.setnamed(name + "::cladding_core", "x span", self.wg.width + 2*cap_thickness)
         self.mode.setnamed(name + "::cladding_core", "y min", 0)
         self.mode.setnamed(name + "::cladding_core", "y max", self.wg.height + cap_thickness)
 
