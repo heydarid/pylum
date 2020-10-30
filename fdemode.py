@@ -13,6 +13,7 @@ fileDir = os.path.dirname(os.path.abspath(__file__))
 parentDir = os.path.dirname(fileDir)
 import lumapi
 
+
 import scipy.constants as sc
 import numpy as np
 pi = np.pi
@@ -40,45 +41,53 @@ class FDEModeSimulator:
 
     def _add_fde(self):
         self.mode.addfde()
-    def _add_mesh(self):
+    def _add_mesh(self, dx_mesh, dy_mesh):
         self.mode.addmesh()
+        self.mode.set("override x mesh", 1)
+        self.mode.set("dx", dx_mesh)
+        self.mode.set("override y mesh", 1)
+        self.mode.set("dy", dy_mesh)
 
     def _close_application(self):
         print("Emergency close!")
         self.mode.close(True)
 
-    def _set_sim_region(self, pml_wavl, mesh):
-        # PMLs general rule of thumb, ~1.5λ from edges of the waveguide core
+    def _set_sim_region(self, wavl, mesh, dx_mesh, dy_mesh):
+        print("Setting simulation region...")
         self._add_fde()
-        self._add_mesh()
-        self.mode.setnamed("FDE", "y min", -1e-6)
-        self.mode.setnamed("FDE", "y max", self.wg.height + 1e-6)
+        self._add_mesh(dx_mesh, dy_mesh)
+        self.mode.setnamed("FDE", "y min", -4.5*self.wg.height)
+        self.mode.setnamed("FDE", "y max", 4.5*self.wg.height)
         self.mode.setnamed("FDE", "x", 0)
-        self.mode.setnamed("FDE", "x span", self.wg.width + 2*1.5*pml_wavl)
-        self.mode.setnamed("mesh", "y min", 0)
-        self.mode.setnamed("mesh", "y max", self.wg.height)
+        self.mode.setnamed("FDE", "x span", 3*wavl)
+        self.mode.setnamed("FDE", "mesh refinement", "conformal variant 0")
+        self.mode.setnamed("mesh", "y min", -1.5*wavl)
+        self.mode.setnamed("mesh", "y max", 1.5*wavl)
         self.mode.setnamed("mesh", "x", 0)
-        self.mode.setnamed("mesh", "x span", self.wg.width + 2*1.5*pml_wavl)
+        self.mode.setnamed("mesh", "x span", 2*self.wg.width)
         self.mode.setnamed("mesh", "enabled", mesh)
 
-    def _set_boundary_cds(self, symmetry):
+    def _set_boundary_cds(self, symmetry, boundary_cds):
+        print("Setting boundary conditions...")
         if symmetry:
             self.mode.setnamed("FDE", "x min bc", "Anti-Symmetric")
         else:
-            self.mode.setnamed("FDE", "x min bc", "PML")
-        self.mode.setnamed("FDE", "x max bc", "PML")
-        self.mode.setnamed("FDE", "y min bc", "Metal")
-        self.mode.setnamed("FDE", "y max bc", "Metal")
+            self.mode.setnamed("FDE", "x min bc", boundary_cds[0])
+        self.mode.setnamed("FDE", "x max bc", boundary_cds[1])
+        self.mode.setnamed("FDE", "y min bc", boundary_cds[2])
+        self.mode.setnamed("FDE", "y max bc", boundary_cds[3])
 
-    def setup_sim(self, pml_wavl, x_core=0, core_name="structure", symmetry=True,
-        cap_thickness=0.5e-6, subs_thickness=3e-6, left=True, right=True, mesh=False):
+    def setup_sim(self, wavl, x_core=0, core_name="structure", symmetry=True,
+        cap_thickness=0.5e-6, subs_thickness=3e-6, left=True, right=True, mesh=False,
+        dx_mesh=10e-9, dy_mesh=10e-9, boundary_cds=['PML','PML','PML','PML']):
         self.mode.switchtolayout()
-        self.environment.produce_environment(self.wg, pml_wavl, x_core, core_name, 
+        self.environment.produce_environment(self.wg, wavl, x_core, core_name, 
             cap_thickness, subs_thickness, left, right)
-        self._set_sim_region(pml_wavl, mesh)
-        self._set_boundary_cds(symmetry)
+        self._set_sim_region(wavl, mesh, dx_mesh, dy_mesh)
+        self._set_boundary_cds(symmetry, boundary_cds)
 
     def _find_modes(self, wavl, trial_modes):
+        print("Solving modes...")
         self.mode.switchtolayout()
         self.mode.setnamed("FDE", "wavelength", wavl)
         self.mode.setanalysis("number of trial modes", trial_modes)
@@ -90,11 +99,11 @@ class FDEModeSimulator:
         return [i for i in mode_ids
             if self.mode.getdata(i, pol+" polarization fraction") > pol_thres]
 
+    # Depreciated 10/29/2020
     def select_mode(self, mode_id):
         self.mode.selectmode(mode_id)
 
     def package_data(self, mode_id):
-        # Package simulation data after selection of the mode.
         wavl = c0 / self.mode.getdata(mode_id, "f")
         E_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
             for s in ("Ex","Ey","Ez")]
@@ -193,7 +202,7 @@ class FDEModeSimData:
     
     @staticmethod
     def _compute_Aeff(E, H, dA):
-        S = (1/2)*np.real(E[0]*np.conj(H[1]) - E[1]*np.conj(H[0]))
+        S = np.real(E[0]*np.conj(H[1]) - E[1]*np.conj(H[0]))
         return (S*dA).sum()
     
     def compute_Aeff(self):
