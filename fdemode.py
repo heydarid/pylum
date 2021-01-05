@@ -27,7 +27,6 @@ class FDEModeSimulator:
     def __init__(self, environment):
         self.environment = environment
         self.mode = environment.mode
-        self.wg = environment.wg
         self.mode.switchtolayout()
     @property
     def xaxis(self):
@@ -53,22 +52,20 @@ class FDEModeSimulator:
         self.mode.close(True)
 
     def _set_sim_region(self, wavl, mesh, dx_mesh, dy_mesh):
-        print("Setting simulation region...")
         self._add_fde()
         self._add_mesh(dx_mesh, dy_mesh)
-        self.mode.setnamed("FDE", "y min", -4.5*self.wg.height)
-        self.mode.setnamed("FDE", "y max", 4.5*self.wg.height)
+        self.mode.setnamed("FDE", "y min", -4.5*self.environment.wg.height)
+        self.mode.setnamed("FDE", "y max", 4.5*self.environment.wg.height)
         self.mode.setnamed("FDE", "x", 0)
         self.mode.setnamed("FDE", "x span", 3*wavl)
         self.mode.setnamed("FDE", "mesh refinement", "conformal variant 0")
-        self.mode.setnamed("mesh", "y min", -1.5*wavl)
-        self.mode.setnamed("mesh", "y max", 1.5*wavl)
+        self.mode.setnamed("mesh", "y min", -0.5e-6)
+        self.mode.setnamed("mesh", "y max", 2.5*self.environment.wg.height)
         self.mode.setnamed("mesh", "x", 0)
-        self.mode.setnamed("mesh", "x span", 2*self.wg.width)
+        self.mode.setnamed("mesh", "x span", 2.5*self.environment.wg.width)
         self.mode.setnamed("mesh", "enabled", mesh)
 
     def _set_boundary_cds(self, symmetry, boundary_cds):
-        print("Setting boundary conditions...")
         if symmetry:
             self.mode.setnamed("FDE", "x min bc", "Anti-Symmetric")
         else:
@@ -81,13 +78,12 @@ class FDEModeSimulator:
         cap_thickness=0.5e-6, subs_thickness=3e-6, left=True, right=True, mesh=False,
         dx_mesh=10e-9, dy_mesh=10e-9, boundary_cds=['PML','PML','PML','PML']):
         self.mode.switchtolayout()
-        self.environment.produce_environment(self.wg, wavl, x_core, core_name, 
+        self.environment.produce_environment(wavl, x_core, core_name, 
             cap_thickness, subs_thickness, left, right)
         self._set_sim_region(wavl, mesh, dx_mesh, dy_mesh)
         self._set_boundary_cds(symmetry, boundary_cds)
 
     def _find_modes(self, wavl, trial_modes):
-        print("Solving modes...")
         self.mode.switchtolayout()
         self.mode.setnamed("FDE", "wavelength", wavl)
         self.mode.setanalysis("number of trial modes", trial_modes)
