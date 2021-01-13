@@ -11,8 +11,6 @@ Copyright:   (c) May 2020 David Heydari, Edwin Ng
 import sys, os
 fileDir = os.path.dirname(os.path.abspath(__file__))
 parentDir = os.path.dirname(fileDir)
-import lumapi
-
 
 import scipy.constants as sc
 import numpy as np

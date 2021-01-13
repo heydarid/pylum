@@ -8,15 +8,9 @@ Copyright:   (c) June 2020 David Heydari
 
 from collections import OrderedDict
 
-import sys, os
-fileDir = os.path.dirname(os.path.abspath(__file__))
-parentDir = os.path.dirname(fileDir)
-print(fileDir)
-import lumapi
-
-import pylum.material.materials as materials
-from pylum.structure.ridge_wg import RidgeWaveguideEnvironment
-from pylum.structure.waveguide import Waveguide
+from ..material import materials
+from ..structure.ridge_wg import RidgeWaveguideEnvironment
+from ..structure.waveguide import Waveguide
 
 class CoupledWaveguide(Waveguide):
     def __init__(self, gap, gap_etch, width_l, width_r, 

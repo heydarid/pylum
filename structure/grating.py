@@ -15,15 +15,10 @@ Assumptions:    Grating begins after a sufficient tapering with default z_span
                 notion of "etch depth" in this sense.)
 Copyright:      (c) August 2020 David Heydari
 """
-
-from collections import OrderedDict
-
-import sys, os, math
-fileDir = os.path.dirname(os.path.abspath(__file__))
-parentDir = os.path.dirname(fileDir)
+import math
 import lumapi
-
-import pylum.material.materials as materials
+from collections import OrderedDict
+from ..material import materials
 
 # TODO: use regex to simplify the code
 

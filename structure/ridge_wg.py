@@ -10,14 +10,8 @@ Copyright:   (c) June 2020 David Heydari
 
 from collections import OrderedDict
 
-import sys, os
-fileDir = os.path.dirname(os.path.abspath(__file__))
-parentDir = os.path.dirname(fileDir)
-import lumapi
+from ..material import materials
 
-import pylum.material.materials as materials
-
-# TODO: use regex to simplify the code
 
 class RidgeWaveguideEnvironment:
     default_params = OrderedDict([

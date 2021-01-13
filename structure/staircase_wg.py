@@ -9,13 +9,9 @@ Copyright:   (c) November 2020 David Heydari
 """
 
 from collections import OrderedDict
+import .lumapi
 
-import sys, os
-fileDir = os.path.dirname(os.path.abspath(__file__))
-parentDir = os.path.dirname(fileDir)
-import lumapi
-
-import pylum.material.materials as materials
+from ..material.materials import materials
 
 class StaircaseWaveguideEnvironment:
     default_params = OrderedDict([

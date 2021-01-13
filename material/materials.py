@@ -6,11 +6,6 @@ Structure:  Ridge-waveguide composed of cladding, core, substrate
 Copyright:   (c) June 2020 David Heydari
 """
 
-import sys, os
-fileDir = os.path.dirname(os.path.abspath(__file__))
-parentDir = os.path.dirname(fileDir)
-import lumapi
-
 import scipy.constants as sc
 import numpy as np
 pi = np.pi
@@ -19,7 +14,7 @@ mu0 = sc.mu_0
 eps0 = sc.epsilon_0
 Z0 = 1/np.sqrt(eps0/mu0)
 
-from pylum.material import n_Si
+import n_Si
 import numpy as np
 
 # TODO: include RII db
