@@ -1,0 +1,30 @@
+# File created using '.gitignore Generator' for Visual Studio Code: https://bit.ly/vscode-gig
+
+# Created by https://www.gitignore.io/api/visualstudiocode,venv,python,macos,visualstudio
+# Edit at https://www.gitignore.io/?templates=visualstudiocode,venv,python,macos,visualstudio
+
+### macOS ###
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# Visual Studio cache files
+# files ending in .cache can be ignored
+*.[Cc]ache
+# but keep track of directories ending in .cache
+!?*.[Cc]ache/
+
+# pycache
+__pycache__
+
+# others
+gds/
+.vscode/settings.json
+*.code-workspace

@@ -8,23 +8,21 @@ https://support.lumerical.com/hc/en-us/articles/360034382674-PML-boundary-condit
 https://support.lumerical.com/hc/en-us/articles/360034382694-Symmetric-and-anti-symmetric-BCs-in-FDTD-and-MODE
 Copyright:   (c) May 2020 David Heydari, Edwin Ng
 """
-import sys, os
-fileDir = os.path.dirname(os.path.abspath(__file__))
-parentDir = os.path.dirname(fileDir)
 
-import scipy.constants as sc
+import scipy.constants as consts
 import numpy as np
 pi = np.pi
-c0 = sc.physical_constants["speed of light in vacuum"][0]
-mu0 = sc.mu_0
-eps0 = sc.epsilon_0
+c0 = consts.c
+mu0 = consts.mu_0
+eps0 = consts.epsilon_0
 Z0 = 1/np.sqrt(eps0/mu0)
 
-# environment = RidgeWaveguideEnvironment(wg, hideGUI)
-class FDEModeSimulator:
-    def __init__(self, environment):
-        self.environment = environment
-        self.mode = environment.mode
+import lumapi
+
+class FDEModeSimulation:
+    def __init__(self, component, hideGUI=True):
+        self.mode = lumapi.MODE(hide=hideGUI)
+        self.component = component
         self.mode.switchtolayout()
     @property
     def xaxis(self):
@@ -49,18 +47,25 @@ class FDEModeSimulator:
         print("Emergency close!")
         self.mode.close(True)
 
-    def _set_sim_region(self, wavl, mesh, dx_mesh, dy_mesh):
+    def _set_sim_region(self, wavl, mesh, dx_mesh, dy_mesh, boundary_cds):
         self._add_fde()
         self._add_mesh(dx_mesh, dy_mesh)
-        self.mode.setnamed("FDE", "y min", -4.5*self.environment.wg.height)
-        self.mode.setnamed("FDE", "y max", 4.5*self.environment.wg.height)
-        self.mode.setnamed("FDE", "x", 0)
-        self.mode.setnamed("FDE", "x span", 3*wavl)
-        self.mode.setnamed("FDE", "mesh refinement", "conformal variant 0")
-        self.mode.setnamed("mesh", "y min", -0.5e-6)
-        self.mode.setnamed("mesh", "y max", 2.5*self.environment.wg.height)
+        if 'PML' in boundary_cds:
+            self.mode.setnamed("FDE", "y", self.component.wg.height/2.)
+            self.mode.setnamed("FDE", "y span", self.component.wg.height + wavl)
+            self.mode.setnamed("FDE", "x", 0)
+            self.mode.setnamed("FDE", "x span", self.component.wg.width + wavl)
+        elif 'Metal' in boundary_cds:
+            self.mode.setnamed("FDE", "y", self.component.wg.height/2.)
+            self.mode.setnamed("FDE", "y span", 3.5*(self.component.wg.height + wavl))
+            self.mode.setnamed("FDE", "x", 0)
+            self.mode.setnamed("FDE", "x span", 3.5*(self.component.wg.width + wavl))
+        self.mode.setnamed("FDE", "mesh refinement", "conformal variant 0")  
+            # acceptable for sims involving non-metals.
+        self.mode.setnamed("mesh", "y", self.component.wg.height/2.)
+        self.mode.setnamed("mesh", "y span", 1.05*self.component.wg.height)
         self.mode.setnamed("mesh", "x", 0)
-        self.mode.setnamed("mesh", "x span", 2.5*self.environment.wg.width)
+        self.mode.setnamed("mesh", "x span", 1.05*self.component.wg.width)
         self.mode.setnamed("mesh", "enabled", mesh)
 
     def _set_boundary_cds(self, symmetry, boundary_cds):
@@ -72,13 +77,13 @@ class FDEModeSimulator:
         self.mode.setnamed("FDE", "y min bc", boundary_cds[2])
         self.mode.setnamed("FDE", "y max bc", boundary_cds[3])
 
-    def setup_sim(self, wavl, x_core=0, core_name="structure", symmetry=True,
-        cap_thickness=0.5e-6, subs_thickness=3e-6, left=True, right=True, mesh=False,
-        dx_mesh=10e-9, dy_mesh=10e-9, boundary_cds=['PML','PML','PML','PML']):
+    def setup_sim(self, wavl, x_core=0, core_name="structure", symmetry=False,
+            cap_thickness=0.5e-6, subs_thickness=3e-6, left=True, right=True, mesh=False,
+            dx_mesh=10e-9, dy_mesh=10e-9, boundary_cds=['PML','PML','PML','PML']):
         self.mode.switchtolayout()
-        self.environment.produce_environment(wavl, x_core, core_name, 
-            cap_thickness, subs_thickness, left, right)
-        self._set_sim_region(wavl, mesh, dx_mesh, dy_mesh)
+        self.component.produce_component(self.mode, wavl, x_core, 
+                core_name, cap_thickness, subs_thickness, left, right)
+        self._set_sim_region(wavl, mesh, dx_mesh, dy_mesh, boundary_cds)
         self._set_boundary_cds(symmetry, boundary_cds)
 
     def _find_modes(self, wavl, trial_modes):
@@ -93,60 +98,24 @@ class FDEModeSimulator:
         return [i for i in mode_ids
             if self.mode.getdata(i, pol+" polarization fraction") > pol_thres]
 
-    # Depreciated 10/29/2020
-    def select_mode(self, mode_id):
+    def _select_mode(self, mode_id):
         self.mode.selectmode(mode_id)
 
     def package_data(self, mode_id):
         wavl = c0 / self.mode.getdata(mode_id, "f")
         E_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
             for s in ("Ex","Ey","Ez")]
-        n_eff = [self.mode.getdata(mode_id, "neff")][0]
+        n_eff = self.mode.getdata(mode_id, "neff")[0][0]
         H_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
             for s in ("Hx","Hy","Hz")]
-        n_grp = [self.mode.getdata(mode_id, "ng")][0]
+        n_grp = self.mode.getdata(mode_id, "ng")[0][0]
         return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavl, E_field, H_field, n_grp, n_eff)
 
     def solve_mode(self, wavl, trial_modes=4, pol_thres=0.96, pol="TE", mode_ind=0):
-        # Run simulation
         self._find_modes(wavl, trial_modes)
         mode_id = self.filtered_modes(pol_thres, pol)[mode_ind]
-        self.select_mode(mode_id)
-        # Package simulation data
-        wavl = c0 / self.mode.getdata(mode_id, "f")
-        E_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
-            for s in ("Ex","Ey","Ez")]
-        n_eff = [self.mode.getdata(mode_id, "neff")][0][0][0]
-        H_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
-            for s in ("Hx","Hy","Hz")]
-        n_grp = [self.mode.getdata(mode_id, "ng")][0]
-        return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavl, E_field, H_field, n_grp, n_eff)
-
-
-    ## This sweep function has been depreciated (29/06/2020). ##
-    def run_lumer_sweep(self, wavl_start, wavl_span, N_sweep, trial_modes=4, pol_thres=0.96, pol="TE", mode_ind=0):
-        # Find starting mode
-        self._find_modes(wavl_start, trial_modes)
-        self.select_mode(self.filtered_modes(pol_thres,pol)[mode_ind])
-        # Run sweep
-        self.mode.setanalysis("track selected mode", True)
-        self.mode.setanalysis("stop wavelength", wavl_start + wavl_span)
-        self.mode.setanalysis("number of points", N_sweep)
-        self.mode.setanalysis("number of test modes", 3) # Recommended
-        self.mode.setanalysis("detailed dispersion calculation", True)
-        self.mode.setanalysis("store mode profiles while tracking", True)
-        self.mode.frequencysweep()
-        # Package sweep data
-        wavls = c0 / self.mode.getdata("FDE::data::frequencysweep", "f")
-        E_temp = [self.mode.getdata("FDE::data::frequencysweep", s)
-            for s in ("Ex","Ey","Ez")]
-        H_temp = [self.mode.getdata("FDE::data::frequencysweep", s)
-            for s in ("Hx","Hy","Hz")]
-        E_fields = [[E[:,:,0,ind,0] for E in E_temp] for ind in range(N_sweep)]
-        H_fields = [[H[:,:,0,ind,0] for H in H_temp] for ind in range(N_sweep)]
-        vgs = np.real(self.mode.getdata("FDE::data::frequencysweep", "vg"))
-        n_effs = np.real(self.mode.getdata("FDE::data::frequencysweep", "neff"))
-        return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavls, E_fields, H_fields, c0/vgs, n_effs)
+        self._select_mode(mode_id)
+        return self.package_data(mode_id)
 
     def run_sweep(self, wavl_center, wavl_span, N_sweep, trial_modes=4, pol_thres=0.96, pol="TE", mode_ind=0):
         # Package simulation data
@@ -161,7 +130,7 @@ class FDEModeSimulator:
         for wavl_i in np.linspace(wavl_start, wavl_stop, N_sweep):
             self._find_modes(wavl_i, trial_modes)
             mode_id = self.filtered_modes(pol_thres, pol)[mode_ind]
-            self.select_mode(mode_id)
+            self._select_mode(mode_id)
             E_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
                 for s in ("Ex","Ey","Ez")]
             n_eff = [self.mode.getdata(mode_id, "neff")][0]

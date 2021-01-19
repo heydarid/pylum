@@ -16,8 +16,7 @@ mu0 = sc.mu_0
 eps0 = sc.epsilon_0
 Z0 = 1/np.sqrt(eps0/mu0)
 
-import pylum.fdemode as fdemode
-from fdemode import FDEModeSimulator
+from pylum.fdemode import FDEModeSimulator
 
 class FDECoupledModeSimulator(FDEModeSimulator):
     def __init__(self, environment):

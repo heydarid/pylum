@@ -7,10 +7,6 @@ https://support.lumerical.com/hc/en-us/articles/360034382674-PML-boundary-condit
 https://support.lumerical.com/hc/en-us/articles/360034382694-Symmetric-and-anti-symmetric-BCs-in-FDTD-and-MODE
 Copyright:   (c) August 2020 David Heydari
 """
-import sys, os
-fileDir = os.path.dirname(os.path.abspath(__file__))
-parentDir = os.path.dirname(fileDir)
-
 import scipy.constants as sc
 import numpy as np
 pi = np.pi
@@ -39,41 +35,41 @@ class FDTDSimulator:
         self.fdtd.set("dimension", dim)  # 1: 2D, 2: 3D
     def _add_mesh(self, dx_mesh, dy_mesh, dz_mesh):
         self.fdtd.addmesh()
-        self.fdtd.set("override x mesh", 1)
+        self.fdtd.set("override x mesh", True)
         self.fdtd.set("dx", dx_mesh)
-        self.fdtd.set("override y mesh", 1)
+        self.fdtd.set("override y mesh", True)
         self.fdtd.set("dy", dy_mesh)
-        self.fdtd.set("override z mesh", 1)
+        self.fdtd.set("override z mesh", dz_mesh != 0)
         self.fdtd.set("dz", dy_mesh)
     
     ### 2d routines
     def _set_sim_region_2d(self, wavl, mesh, dx_mesh, dy_mesh):
         self._add_fdtd()
-        self._add_mesh(dx_mesh, dy_mesh)
-        self.mode.setnamed("FDE", "y min", -4.5*self.environment.wg.height)
-        self.mode.setnamed("FDE", "y max", 4.5*self.environment.wg.height)
-        self.mode.setnamed("FDE", "x", 0)
-        self.mode.setnamed("FDE", "x span", 3*wavl)
-        self.mode.setnamed("FDE", "mesh refinement", "conformal variant 0")
-        self.mode.setnamed("mesh", "y min", -0.5e-6)
-        self.mode.setnamed("mesh", "y max", 2.5*self.environment.wg.height)
-        self.mode.setnamed("mesh", "x", 0)
-        self.mode.setnamed("mesh", "x span", 2.5*self.environment.wg.width)
-        self.mode.setnamed("mesh", "enabled", mesh)
+        self._add_mesh(dx_mesh, dy_mesh, dz_mesh=0)
+        self.fdtd.setnamed("FDE", "y min", -4.5*self.environment.wg.height)
+        self.fdtd.setnamed("FDE", "y max", 4.5*self.environment.wg.height)
+        self.fdtd.setnamed("FDE", "x", 0)
+        self.fdtd.setnamed("FDE", "x span", 3*wavl)
+        self.fdtd.setnamed("FDE", "mesh refinement", "conformal variant 0")
+        self.fdtd.setnamed("mesh", "y min", -0.5e-6)
+        self.fdtd.setnamed("mesh", "y max", 2.5*self.environment.wg.height)
+        self.fdtd.setnamed("mesh", "x", 0)
+        self.fdtd.setnamed("mesh", "x span", 2.5*self.environment.wg.width)
+        self.fdtd.setnamed("mesh", "enabled", mesh)
     
     def _set_boundary_cds(self, symmetry, boundary_cds):
         if symmetry:
-            self.mode.setnamed("FDE", "x min bc", "Anti-Symmetric")
+            self.fdtd.setnamed("FDE", "x min bc", "Anti-Symmetric")
         else:
-            self.mode.setnamed("FDE", "x min bc", boundary_cds[0])
-        self.mode.setnamed("FDE", "x max bc", boundary_cds[1])
-        self.mode.setnamed("FDE", "y min bc", boundary_cds[2])
-        self.mode.setnamed("FDE", "y max bc", boundary_cds[3])
+            self.fdtd.setnamed("FDE", "x min bc", boundary_cds[0])
+        self.fdtd.setnamed("FDE", "x max bc", boundary_cds[1])
+        self.fdtd.setnamed("FDE", "y min bc", boundary_cds[2])
+        self.fdtd.setnamed("FDE", "y max bc", boundary_cds[3])
 
     def setup_sim(self, wavl, x_core=0, core_name="structure", symmetry=True,
         cap_thickness=0.5e-6, subs_thickness=3e-6, left=True, right=True, mesh=False,
         dx_mesh=10e-9, dy_mesh=10e-9, boundary_cds=['PML','PML','PML','PML']):
-        self.mode.switchtolayout()
+        self.fdtd.switchtolayout()
         self.environment.produce_environment(wavl, x_core, core_name, 
             cap_thickness, subs_thickness, left, right)
         self._set_sim_region(wavl, mesh, dx_mesh, dy_mesh)
@@ -86,4 +82,4 @@ class FDTDSimulator:
     ### Application
     def _close_application(self):
         print("Emergency close!")
-        self.mode.close(True)
+        self.fdtd.close(True)
