@@ -2,13 +2,8 @@
 Purpose:    FDFD eigenmode (FDE) mode-solver that collects relevant data from Lumerical(R) MODE(TM)
             FDE mode simulation instance simulating a ridge-waveguide.
             Units are SI unless otherwise noted.
-Useful links:
-https://support.lumerical.com/hc/en-us/articles/360034917233-MODE-Finite-Difference-Eigenmode-FDE-solver-introduction
-https://support.lumerical.com/hc/en-us/articles/360034382674-PML-boundary-conditions-in-FDTD-and-MODE#toc_2
-https://support.lumerical.com/hc/en-us/articles/360034382694-Symmetric-and-anti-symmetric-BCs-in-FDTD-and-MODE
 Copyright:   (c) May 2020 David Heydari, Edwin Ng
 """
-
 import scipy.constants as consts
 import numpy as np
 pi = np.pi
@@ -106,18 +101,32 @@ class FDEModeSimulation:
         E_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
             for s in ("Ex","Ey","Ez")]
         n_eff = self.mode.getdata(mode_id, "neff")[0][0]
-        H_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
-            for s in ("Hx","Hy","Hz")]
+        H_field = [(Z0/n_eff)*self.mode.getdata(mode_id, s)[:,:,0,0] 
+                for s in ("Hx","Hy","Hz")]  # converting Lumerical to our normalization
         n_grp = self.mode.getdata(mode_id, "ng")[0][0]
-        return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavl, E_field, H_field, n_grp, n_eff)
+        return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavl, 
+                            E_field, H_field, n_grp, n_eff)
 
-    def solve_mode(self, wavl, trial_modes=4, pol_thres=0.96, pol="TE", mode_ind=0):
+    def bent_waveguide_setup(self, bend_radius, orientation_angle, 
+            x_bend, y_bend, z_bend=0):
+        self.mode.setanalysis("bent waveguide", True) 
+        self.mode.setanalysis("bend radius", bend_radius)
+        self.mode.setanalysis("bend orientation", orientation_angle)
+        self.mode.setanalysis("bend location", 2)
+        self.mode.setanalysis("bend location x", x_bend)
+        self.mode.setanalysis("bend location y", y_bend)
+        self.mode.setanalysis("bend location z", z_bend)
+
+    def solve_mode(self, wavl, bent=False, trial_modes=4, 
+                pol_thres=0.96, pol="TE", mode_ind=0):
+        self.mode.setanalysis("bent waveguide", bent)            
         self._find_modes(wavl, trial_modes)
         mode_id = self.filtered_modes(pol_thres, pol)[mode_ind]
         self._select_mode(mode_id)
         return self.package_data(mode_id)
 
-    def run_sweep(self, wavl_center, wavl_span, N_sweep, trial_modes=4, pol_thres=0.96, pol="TE", mode_ind=0):
+    def run_sweep(self, wavl_center, wavl_span, N_sweep, trial_modes=4, 
+                pol_thres=0.96, pol="TE", mode_ind=0):
         # Package simulation data
         wavls = []
         E_fields = []

@@ -18,15 +18,13 @@ def sellmeier_Jundt(wavl, T, f, a, b):
         return n**2
 
 def gayer2008_e(wavl, T):  # T in Kelvin
-        wavl *= 1e6
         f = (T-273.15 - 24.5)*(T-273.15 + 570.82)
         a = [5.756, 0.0983, 0.2020, 189.32, 12.52, 1.32e-2]
         b = [2.86e-6, 4.7e-8, 6.113e-8, 1.516e-4]
-        return sellmeier_Jundt(wavl, T, f, a, b)
+        return sellmeier_Jundt(wavl*1e6, T, f, a, b)
 
 def gayer2008_o(wavl, T):  # T in Kelvin
-        wavl *= 1e6
         f = (T-273.15 - 24.5)*(T-273.15 + 570.82)
         a = [5.653, 0.1185, 0.2091, 89.61, 10.85, 1.97e-2]
         b = [7.941e-7, 3.134e-8, -4.641e-9, -2.188e-6]
-        return sellmeier_Jundt(wavl, T, f, a, b)
+        return sellmeier_Jundt(wavl*1e6, T, f, a, b)
