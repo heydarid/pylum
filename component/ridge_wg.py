@@ -149,7 +149,7 @@ class RidgeWaveguide:
         program.setnamed(name + "::clad_pedestal_l", "enabled", left)
         program.setnamed(name + "::clad_pedestal_r", "enabled", right)
 
-    def _set_core_geometry(self, program, name, cap_thickness, x_core):
+    def _set_core_geometry(self, program, name, x_core):
         program.switchtolayout()
         program.setnamed(name + "::guide", "x", x_core)
         program.setnamed(name + "::guide", "x span", self.wg.width)
@@ -157,16 +157,17 @@ class RidgeWaveguide:
         program.setnamed(name + "::guide", "y max", self.wg.height)
 
     def set_geometry(self, program, wavl, name, subs_thickness, 
-            cap_thickness, x_core, left, right):
+                            cap_thickness, x_core, left, right):
         self._set_substrate_geometry(program, wavl, subs_thickness)
         self._set_pedestal_geometry(program, name, wavl, x_core)
         self._set_cladding_geometry(program, name, wavl, cap_thickness, x_core)
-        self._set_core_geometry(program, name, cap_thickness, x_core)
+        self._set_core_geometry(program, name, x_core)
         self._enable_pedestal(program, name, left, right)
 
     def produce_component(self, program, wavl, x_core, core_name, 
-            cap_thickness, subs_thickness, left, right):
-        program.deleteall()
+                            cap_thickness, subs_thickness, left, right, cleanup=True):
+        if cleanup:
+            program.deleteall()
         self.create_structures(program)
         self._add_to_core_group(program, core_name)
         self.set_group_material(program, core_name)

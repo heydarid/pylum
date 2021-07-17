@@ -42,24 +42,24 @@ class FDEModeSimulation:
         print("Emergency close!")
         self.mode.close(True)
 
-    def _set_sim_region(self, wavl, mesh, dx_mesh, dy_mesh, boundary_cds):
+    def _set_sim_region(self, wavl, x_fde, mesh, dx_mesh, dy_mesh, boundary_cds):
         self._add_fde()
         self._add_mesh(dx_mesh, dy_mesh)
         if 'PML' in boundary_cds:
             self.mode.setnamed("FDE", "y", self.component.wg.height/2.)
             self.mode.setnamed("FDE", "y span", self.component.wg.height + wavl)
-            self.mode.setnamed("FDE", "x", 0)
+            self.mode.setnamed("FDE", "x", x_fde)
             self.mode.setnamed("FDE", "x span", self.component.wg.width + wavl)
         elif 'Metal' in boundary_cds:
             self.mode.setnamed("FDE", "y", self.component.wg.height/2.)
             self.mode.setnamed("FDE", "y span", 3.5*(self.component.wg.height + wavl))
-            self.mode.setnamed("FDE", "x", 0)
+            self.mode.setnamed("FDE", "x", x_fde)
             self.mode.setnamed("FDE", "x span", 3.5*(self.component.wg.width + wavl))
         self.mode.setnamed("FDE", "mesh refinement", "conformal variant 0")  
             # acceptable for sims involving non-metals.
         self.mode.setnamed("mesh", "y", self.component.wg.height/2.)
         self.mode.setnamed("mesh", "y span", 1.05*self.component.wg.height)
-        self.mode.setnamed("mesh", "x", 0)
+        self.mode.setnamed("mesh", "x", x_fde)
         self.mode.setnamed("mesh", "x span", 1.05*self.component.wg.width)
         self.mode.setnamed("mesh", "enabled", mesh)
 
@@ -73,12 +73,12 @@ class FDEModeSimulation:
         self.mode.setnamed("FDE", "y max bc", boundary_cds[3])
 
     def setup_sim(self, wavl, x_core=0, core_name="structure", symmetry=False,
-            cap_thickness=0.5e-6, subs_thickness=3e-6, left=True, right=True, mesh=False,
-            dx_mesh=10e-9, dy_mesh=10e-9, boundary_cds=['PML','PML','PML','PML']):
+            cap_thickness=0.5e-6, subs_thickness=3e-6, mesh=False,
+            dx_mesh=10e-9, dy_mesh=10e-9, boundary_cds=['PML','PML','PML','PML'], x_fde=0):
         self.mode.switchtolayout()
-        self.component.produce_component(self.mode, wavl, x_core, 
-                core_name, cap_thickness, subs_thickness, left, right)
-        self._set_sim_region(wavl, mesh, dx_mesh, dy_mesh, boundary_cds)
+        self.component.produce_component(self.mode, wavl, x_core,
+                core_name, cap_thickness, subs_thickness)
+        self._set_sim_region(wavl, x_fde, mesh, dx_mesh, dy_mesh, boundary_cds)
         self._set_boundary_cds(symmetry, boundary_cds)
 
     def _find_modes(self, wavl, trial_modes):
@@ -101,8 +101,8 @@ class FDEModeSimulation:
         E_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
             for s in ("Ex","Ey","Ez")]
         n_eff = self.mode.getdata(mode_id, "neff")[0][0]
-        H_field = [(Z0/n_eff)*self.mode.getdata(mode_id, s)[:,:,0,0] 
-                for s in ("Hx","Hy","Hz")]  # converting Lumerical to our normalization
+        H_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
+                for s in ("Hx","Hy","Hz")] 
         n_grp = self.mode.getdata(mode_id, "ng")[0][0]
         return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavl, 
                             E_field, H_field, n_grp, n_eff)
@@ -143,8 +143,8 @@ class FDEModeSimulation:
             E_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
                 for s in ("Ex","Ey","Ez")]
             n_eff = [self.mode.getdata(mode_id, "neff")][0]
-            H_field = [(Z0/n_eff)*self.mode.getdata(mode_id, s)[:,:,0,0] 
-                for s in ("Hx","Hy","Hz")]  # converting Lumerical to our normalization
+            H_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
+                for s in ("Hx","Hy","Hz")]
             n_grp = [self.mode.getdata(mode_id, "ng")][0]
             E_fields.append(E_field)
             H_fields.append(H_field)
@@ -156,7 +156,7 @@ class FDEModeSimulation:
 
 
 class FDEModeSimData:
-    def __init__(self, xaxis, yaxis, index, wavel, E_field, H_field, n_grp, n_eff):
+    def __init__(self, xaxis, yaxis, index, wavel, E_field, H_field, n_grp, n_eff, A_mode=None):
         self.xaxis = xaxis
         self.yaxis = yaxis
         self.wavl = wavel
@@ -165,6 +165,7 @@ class FDEModeSimData:
         self.H_field = H_field
         self.n_grps = n_grp
         self.n_effs = n_eff
+        self.A_mode = A_mode
 
     @property
     def dxdy(self):
