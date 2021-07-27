@@ -165,7 +165,8 @@ class RidgeWaveguide:
         self._enable_pedestal(program, name, left, right)
 
     def produce_component(self, program, wavl, x_core, core_name, 
-                            cap_thickness, subs_thickness, left, right, cleanup=True):
+                            cap_thickness, subs_thickness, left=True, right=True, 
+                            cleanup=True):
         if cleanup:
             program.deleteall()
         self.create_structures(program)

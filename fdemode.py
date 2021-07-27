@@ -42,7 +42,8 @@ class FDEModeSimulation:
         print("Emergency close!")
         self.mode.close(True)
 
-    def _set_sim_region(self, wavl, x_fde, mesh, dx_mesh, dy_mesh, boundary_cds):
+    def _set_sim_region(self, wavl, x_fde, mesh, dx_mesh, dy_mesh, 
+                        boundary_cds, mesh_factor):
         self._add_fde()
         self._add_mesh(dx_mesh, dy_mesh)
         if 'PML' in boundary_cds:
@@ -58,9 +59,9 @@ class FDEModeSimulation:
         self.mode.setnamed("FDE", "mesh refinement", "conformal variant 0")  
             # acceptable for sims involving non-metals.
         self.mode.setnamed("mesh", "y", self.component.wg.height/2.)
-        self.mode.setnamed("mesh", "y span", 1.05*self.component.wg.height)
+        self.mode.setnamed("mesh", "y span", mesh_factor*self.component.wg.height)
         self.mode.setnamed("mesh", "x", x_fde)
-        self.mode.setnamed("mesh", "x span", 1.05*self.component.wg.width)
+        self.mode.setnamed("mesh", "x span", mesh_factor*self.component.wg.width)
         self.mode.setnamed("mesh", "enabled", mesh)
 
     def _set_boundary_cds(self, symmetry, boundary_cds):
@@ -73,12 +74,13 @@ class FDEModeSimulation:
         self.mode.setnamed("FDE", "y max bc", boundary_cds[3])
 
     def setup_sim(self, wavl, x_core=0, core_name="structure", symmetry=False,
-            cap_thickness=0.5e-6, subs_thickness=3e-6, mesh=False,
-            dx_mesh=10e-9, dy_mesh=10e-9, boundary_cds=['PML','PML','PML','PML'], x_fde=0):
+                cap_thickness=0.5e-6, subs_thickness=3e-6, mesh=False,
+                dx_mesh=10e-9, dy_mesh=10e-9, boundary_cds=['PML','PML','PML','PML'], 
+                x_fde=0, mesh_factor=1.1):
         self.mode.switchtolayout()
         self.component.produce_component(self.mode, wavl, x_core,
                 core_name, cap_thickness, subs_thickness)
-        self._set_sim_region(wavl, x_fde, mesh, dx_mesh, dy_mesh, boundary_cds)
+        self._set_sim_region(wavl, x_fde, mesh, dx_mesh, dy_mesh, boundary_cds, mesh_factor)
         self._set_boundary_cds(symmetry, boundary_cds)
 
     def _find_modes(self, wavl, trial_modes):
