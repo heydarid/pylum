@@ -19,8 +19,8 @@ if platform_os == 'Windows':
 	else:
 		raise Exception( 'ERROR: Cannot find Windows Lumerical API directory!' )
 elif platform_os == 'Linux':
-	if path.isdir('/opt/lumerical/2019b'):
-		sys.path.append('/opt/lumerical/2019b/api/python/')
+	if path.isdir('/opt/lumerical/v212'):
+		sys.path.append('/opt/lumerical/v212/api/python/')
 	elif path.isdir('/opt/lumerical/mode/api'):
 		sys.path.append('/opt/lumerical/mode/api/python/')
 	else:
