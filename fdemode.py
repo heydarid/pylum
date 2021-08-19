@@ -110,14 +110,16 @@ class FDEModeSimulation:
                             E_field, H_field, n_grp, n_eff)
 
     def bent_waveguide_setup(self, bend_radius, orientation_angle, 
-            x_bend, y_bend, z_bend=0):
+            x_bend=None, y_bend=None, z_bend=None):
         self.mode.setanalysis("bent waveguide", True) 
         self.mode.setanalysis("bend radius", bend_radius)
         self.mode.setanalysis("bend orientation", orientation_angle)
-        self.mode.setanalysis("bend location", 2)
-        self.mode.setanalysis("bend location x", x_bend)
-        self.mode.setanalysis("bend location y", y_bend)
-        self.mode.setanalysis("bend location z", z_bend)
+        self.mode.setanalysis("bend location", 1)
+        if (x_bend or y_bend or z_bend) != None:
+            self.mode.setanalysis("bend location", 2)
+            self.mode.setanalysis("bend location x", x_bend)
+            self.mode.setanalysis("bend location y", y_bend)
+            self.mode.setanalysis("bend location z", z_bend)
 
     def solve_mode(self, wavl, bent=False, trial_modes=4, 
                 pol_thres=0.96, pol="TE", mode_ind=0):
