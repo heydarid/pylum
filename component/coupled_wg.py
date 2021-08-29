@@ -73,7 +73,7 @@ class CoupledRidgeWaveguide:
         program.setnamed("gap_clad", "x span", self.wg.gap)
         program.setnamed("gap_clad", "y min", 0)
         program.setnamed("gap_clad", "y max", self.wg.height - self.wg.gap_etch 
-                                                                        + cap_thickness)
+                            + cap_thickness)
     def set_geometry(self, program, cap_thickness):
         self._set_gap_geometry(program)
         self._set_gap_clad_geometry(program, cap_thickness)
