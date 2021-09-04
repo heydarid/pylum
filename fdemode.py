@@ -46,15 +46,13 @@ class FDEModeSimulation:
                         boundary_cds, mesh_factor):
         self._add_fde()
         self._add_mesh(dx_mesh, dy_mesh)
+        self.mode.setnamed("FDE", "x", x_fde)
+        self.mode.setnamed("FDE", "y", self.component.wg.height/2.)
         if 'PML' in boundary_cds:
-            self.mode.setnamed("FDE", "y", self.component.wg.height/2.)
             self.mode.setnamed("FDE", "y span", self.component.wg.height + wavl)
-            self.mode.setnamed("FDE", "x", x_fde)
             self.mode.setnamed("FDE", "x span", self.component.wg.width + wavl)
         elif 'Metal' in boundary_cds:
-            self.mode.setnamed("FDE", "y", self.component.wg.height/2.)
             self.mode.setnamed("FDE", "y span", 3.5*(self.component.wg.height + wavl))
-            self.mode.setnamed("FDE", "x", x_fde)
             self.mode.setnamed("FDE", "x span", 3.5*(self.component.wg.width + wavl))
         self.mode.setnamed("FDE", "mesh refinement", "conformal variant 0")  
             # acceptable for sims involving non-metals.
@@ -76,7 +74,7 @@ class FDEModeSimulation:
     def setup_sim(self, wavl, x_core=0, core_name="structure", symmetry=False,
                 cap_thickness=0.5e-6, subs_thickness=3e-6, mesh=False,
                 dx_mesh=10e-9, dy_mesh=10e-9, boundary_cds=['PML','PML','PML','PML'], 
-                x_fde=0, mesh_factor=1.1):
+                x_fde=0.0, mesh_factor=1.1):
         self.mode.switchtolayout()
         self.component.produce_component(self.mode, wavl, x_core,
                 core_name, cap_thickness, subs_thickness)

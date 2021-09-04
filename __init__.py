@@ -19,9 +19,10 @@ if platform_os == 'Windows':
 	else:
 		raise Exception( 'ERROR: Cannot find Windows Lumerical API directory!' )
 elif platform_os == 'Linux':
-	if path.isdir('/opt/lumerical/'):
-		topdir = next(os.walk('/opt/lumerical/'))[1]
-		sys.path.append(topdir[0] + '/api/python/')
+	dir = '/opt/lumerical/'
+	if path.isdir(dir):
+		topdir = next(os.walk(dir))[1]
+		sys.path.append(dir + topdir[0] + '/api/python/')
 	else:
 		raise Exception('ERROR: Cannot find Linux Lumerical API directory!' )
 import lumapi
