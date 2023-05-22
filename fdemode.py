@@ -61,6 +61,9 @@ class FDEModeSimulation:
         self.mode.setnamed("mesh", "x", x_fde)
         self.mode.setnamed("mesh", "x span", mesh_factor*self.component.wg.width)
         self.mode.setnamed("mesh", "enabled", mesh)
+    
+    def _set_temperature(self, T):
+        self.mode.setnamed("FDE", "simulation temperature", T)
 
     def _set_boundary_cds(self, symmetry, boundary_cds):
         if symmetry:
@@ -74,11 +77,12 @@ class FDEModeSimulation:
     def setup_sim(self, wavl, x_core=0, core_name="structure", symmetry=False,
                 cap_thickness=0.5e-6, subs_thickness=3e-6, mesh=False,
                 dx_mesh=10e-9, dy_mesh=10e-9, boundary_cds=['PML','PML','PML','PML'], 
-                x_fde=0.0, mesh_factor=1.1):
+                x_fde=0.0, mesh_factor=1.1, T=20):
         self.mode.switchtolayout()
         self.component.produce_component(self.mode, wavl, x_core,
                 core_name, cap_thickness, subs_thickness)
         self._set_sim_region(wavl, x_fde, mesh, dx_mesh, dy_mesh, boundary_cds, mesh_factor)
+        self._set_temperature(T + 273.15)
         self._set_boundary_cds(symmetry, boundary_cds)
 
     def _find_modes(self, wavl, trial_modes):
@@ -104,8 +108,9 @@ class FDEModeSimulation:
         H_field = [self.mode.getdata(mode_id, s)[:,:,0,0] 
                 for s in ("Hx","Hy","Hz")] 
         n_grp = self.mode.getdata(mode_id, "ng")[0][0]
+        loss = self.mode.getdata(mode_id, "loss")  # dB/m
         return FDEModeSimData(self.xaxis, self.yaxis, self.index, wavl, 
-                            E_field, H_field, n_grp, n_eff)
+                            E_field, H_field, n_grp, n_eff, loss)
 
     def bent_waveguide_setup(self, bend_radius, orientation_angle, 
             x_bend=None, y_bend=None, z_bend=None):
@@ -158,7 +163,7 @@ class FDEModeSimulation:
 
 
 class FDEModeSimData:
-    def __init__(self, xaxis, yaxis, index, wavel, E_field, H_field, n_grp, n_eff, A_mode=None):
+    def __init__(self, xaxis, yaxis, index, wavel, E_field, H_field, n_grp, n_eff, loss, A_mode=None):
         self.xaxis = xaxis
         self.yaxis = yaxis
         self.wavl = wavel
@@ -167,6 +172,7 @@ class FDEModeSimData:
         self.H_field = H_field
         self.n_grps = n_grp
         self.n_effs = n_eff
+        self.loss = loss
         self.A_mode = A_mode
 
     @property
@@ -177,14 +183,14 @@ class FDEModeSimData:
     
     @staticmethod
     def _compute_Aeff(E, H, dA):
-        S = np.real(E[0]*np.conj(H[1]) - E[1]*np.conj(H[0]))
+        S = np.real(E[0]*np.conj(H[1]) - E[1]*np.conj(H[0])) / np.max(np.abs(H))
         return (S*dA).sum()
     
     def compute_Aeff(self):
-        if isinstance(self.wavl,(list,np.ndarray)):
-            return [self._compute_Aeff(E,H, self.dxdy)
-                for E,H in zip(self.E_field,self.H_field)]
-        return self._compute_Aeff(self.E_field,self.H_field,self.dxdy)
+        if isinstance(self.wavl, (list, np.ndarray)):
+            return [self._compute_Aeff(E, H, self.dxdy)
+                for E,H in zip(self.E_field, self.H_field)]
+        return self._compute_Aeff(self.E_field, self.H_field, self.dxdy)
 
     def clip_fields(self, x, y):
         mask_x = (x[0] < self.xaxis) & (self.xaxis < x[-1])
@@ -192,8 +198,10 @@ class FDEModeSimData:
         if isinstance(self.wavl,(list,np.ndarray)):
             E_field = [[Ek[mask_x,:][:,mask_y] for Ek in E] for E in self.E_field]
             H_field = [[Hk[mask_x,:][:,mask_y] for Hk in H] for H in self.H_field]
+            index = [nk[mask_x,:][:,mask_y] for nk in self.index]
         else:
             E_field = [Ek[mask_x,:][:,mask_y] for Ek in self.E_field]
             H_field = [Hk[mask_x,:][:,mask_y] for Hk in self.H_field]
+            index = self.index[mask_x,:][:,mask_y]
         return FDEModeSimData(self.xaxis[mask_x], self.yaxis[mask_y],
-            self.index, self.wavl, E_field, H_field, self.n_grps, self.n_effs)
+            index, self.wavl, E_field, H_field, self.n_grps, self.n_effs, self.loss)

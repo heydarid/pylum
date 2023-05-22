@@ -17,6 +17,9 @@ Example of material_params argument:
         ])
 """
 
+from .. import lumapi
+from lumapi import LumApiError
+
 class Waveguide:
     def __init__(self, width, height, etch):
         self.width = width
@@ -37,6 +40,12 @@ class RidgeWaveguide:
         program.set("name", "pedestal_l")
         program.addrect()
         program.set("name", "pedestal_r")
+
+    def _create_doped_pedestals(self, program):
+        program.addrect()
+        program.set("name", "doped_pedestal_l")
+        program.addrect()
+        program.set("name", "doped_pedestal_r")
 
     def _create_claddings(self, program):
         program.addrect()
@@ -113,6 +122,23 @@ class RidgeWaveguide:
         program.setnamed("substrate", "y min", -subs_thickness)
         program.setnamed("substrate", "y max", 0)
 
+    def _set_pedestal_doping_geometry(self, program, name, depth, dist_to_core):
+        x_min = program.getnamed(name +  "::clad_pedestal_l", "x min")
+        x_max = program.getnamed(name + "::clad_pedestal_r", "x max")
+        x_core_min = program.getnamed(name +  "::guide", "x min")
+        x_core_max = program.getnamed(name +  "::guide", "x max")
+
+        program.switchtolayout()
+        program.setnamed(name + "::doped_pedestal_l", "x min", x_min)
+        program.setnamed(name + "::doped_pedestal_l", "x max", x_core_min - dist_to_core)
+        program.setnamed(name + "::doped_pedestal_l", "y min", self.wg.height - self.wg.etch - depth)
+        program.setnamed(name + "::doped_pedestal_l", "y max", self.wg.height - self.wg.etch)
+
+        program.setnamed(name + "::doped_pedestal_r", "x min", x_core_max + dist_to_core)
+        program.setnamed(name + "::doped_pedestal_r", "x max", x_max)
+        program.setnamed(name + "::doped_pedestal_r", "y min", self.wg.height - self.wg.etch - depth)
+        program.setnamed(name + "::doped_pedestal_r", "y max", self.wg.height - self.wg.etch)
+
     def _set_pedestal_geometry(self, program, name, wavl, x_core):
         program.switchtolayout()
         program.setnamed(name + "::pedestal_l", "x min", -10*wavl)
@@ -157,7 +183,7 @@ class RidgeWaveguide:
         program.setnamed(name + "::guide", "y max", self.wg.height)
 
     def set_geometry(self, program, wavl, name, subs_thickness, 
-                            cap_thickness, x_core, left, right):
+                    cap_thickness, x_core, left, right):
         self._set_substrate_geometry(program, wavl, subs_thickness)
         self._set_pedestal_geometry(program, name, wavl, x_core)
         self._set_cladding_geometry(program, name, wavl, cap_thickness, x_core)
@@ -175,6 +201,23 @@ class RidgeWaveguide:
         self.set_geometry(program, wavl, core_name, subs_thickness, 
             cap_thickness, x_core, left, right)
         self.set_mesh_orders(program, core_name)
+
+    def add_dopant_regions(self, program, core_name,
+                            depth=500e-9, dist_to_core=None):  # generally run after produce_component
+        self._create_doped_pedestals(program)
+        program.select("guide")
+        program.shiftselect("doped_pedestal_l")
+        program.shiftselect("doped_pedestal_r")
+        program.addtogroup(core_name)
+        
+        self._set_pedestal_doping_geometry(program, core_name, depth, dist_to_core)
+
+        program.select(core_name + "::doped_pedestal_l")
+        program.set("override mesh order from material database", True)
+        program.set("mesh order", 1)
+        program.select(core_name + "::doped_pedestal_r")
+        program.set("override mesh order from material database", True)
+        program.set("mesh order", 1)
 
     def save_file(self, program, path):
         program.save(path)

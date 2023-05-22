@@ -32,6 +32,6 @@ def NASA(wavl, T):  # T in Kelvin
         for ind_T in np.arange(0,5):
             S[ind_res] = S[ind_res] + S_ij[ind_res,ind_T] * T ** T_pow[ind_T]
             l[ind_res] = l[ind_res] + l_ij[ind_res,ind_T] * T ** T_pow[ind_T]
-    n_2_minus_1 = sum(S * wavl_um**2 / ( np.ones((3,1)) * wavl_um**2 - l**2 * np.ones((1,np.size(wavl_um))) ), 0)
+    n_2_minus_1 = sum(S * wavl_um**2 / ( np.ones((3,1)) * wavl_um**2 - l**2 * np.ones((1, np.size(wavl_um))) ), 0)
     eps = n_2_minus_1 + 1
     return eps

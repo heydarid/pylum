@@ -15,6 +15,7 @@ eps0 = sc.epsilon_0
 Z0 = 1/np.sqrt(eps0/mu0)
 
 import numpy as np
+import lumapi
 # TODO: include RII db
 
 # Common Lumerical materials (listed)
@@ -24,9 +25,13 @@ silica = 'SiO2 (Glass) - Palik'
 
 # Materials from Sellmeier
 #### Silicon ####
-def make_Si_nasa(solver, T=295, fit_coefs=10):
+def make_Si_nasa(solver, T=295, fit_coefs=10):  # solver: usually the default solver 
+    # edit (C:\Users\heydarid\OneDrive - Stanford\research\templates\LUMERICAL), 
+    # then copy to (C:\Program Files\Lumerical\v211\defaults).
     from .indexmodels import Si
     name = 'Si (Silicon) - NASA'
+    if T != 295:
+        name = 'Si (Silicon) - NASA; T=' + str(round(T-273.15)) + 'C'
     wavls = np.linspace(1, 4, 1000)*1e-6
     eps = Si.NASA(wavls, T)
     solver.setmaterial(solver.addmaterial("Sampled data"), "name", name)
